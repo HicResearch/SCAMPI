@@ -1,0 +1,17 @@
+sources:
+  friendly_name:
+    type: filesystem
+    directory: ~/my_images
+  other_friendly_name:
+    type: PACS
+    aet:
+    aem:
+    port:
+    ip:
+    key:
+      - 0008,0020="20250101"
+      - 0008,0052="STUDY"
+destination:
+  files:
+    directory: ~/some/directory
+    compress: true
