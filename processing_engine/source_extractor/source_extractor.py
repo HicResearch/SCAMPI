@@ -2,7 +2,7 @@ import yaml
 
 config = None
 
-with open("/SCAMPI/config.yml") as ymlstream:
+with open("/mnt/config.yml") as ymlstream:
     try:
         config  = yaml.safe_load(ymlstream)
     except yaml.YAMLError as exc:
