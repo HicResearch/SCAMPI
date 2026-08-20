@@ -1,7 +1,7 @@
 sources:
   friendly_name:
     type: filesystem
-    directory: ~/my_images
+    directory: /my_images
   other_friendly_name:
     type: PACS
     aet:
@@ -15,3 +15,6 @@ destination:
   files:
     directory: ~/some/directory
     compress: true
+  metadata:
+    dbType: MSSQL
+    connectionString: mssql+pyodbc://scampi:scampi@host.docker.internal,1433/SCAMPI?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes

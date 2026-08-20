@@ -1,1 +1,13 @@
+greenlet==3.5.5
+numpy==2.5.2
+pandas==3.0.5
+pydicom==3.0.2
+pymssql==2.3.13
+pynetdicom==3.0.4
+pyodbc==5.3.0
+python-dateutil==2.9.0.post0
 PyYAML==6.0.3
+six==1.17.0
+SQLAlchemy==2.0.52
+typing_extensions==4.16.0
+tzdata==2026.3
