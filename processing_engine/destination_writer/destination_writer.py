@@ -9,6 +9,7 @@ def write_file():
 def write_metadata(config,table_name, dataframe):
     dbType =  config['destination']['metadata']['dbType']
     if dbType == 'MSSQL':
+        print(table_name,dataframe.shape)
         dataframe.to_sql(table_name,config['destination']['metadata']['connectionString'],if_exists="append",index=False)
     else:
         print(config['destination']['metadata']['dbType'], " not implemented")

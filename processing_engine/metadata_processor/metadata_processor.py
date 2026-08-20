@@ -6,6 +6,8 @@ import pandas as pd
 from destination_writer.destination_writer import destination_writer
 import traceback
 import time
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from itertools import repeat
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
 modality_templates_location="/templates"
 
@@ -61,6 +63,52 @@ def get_modality_table(modality,table_name):
         modality_tables[modality + '_'+table['TableName']]  = df# e.g. CT_StudyTable, CT_SeriesTable, CT_ImageTable
     return modality_tables.get(modality+'_'+table_name,None)
 
+
+def process(file,root_directory):
+    filename = os.fsdecode(file)
+    records = []
+    if filename.endswith('.dcm'):
+        # file_count = file_count+1
+        ds = pydicom.dcmread(root_directory +'/'+filename)
+        try:
+            modality = ds.Modality
+            modality_config = get_modality_config_for_file(modality)
+            if modality_config is None:
+                print("modality not found", modality)
+                # continue
+
+            tables = modality_config["Tables"]
+            for table in tables:
+                modality_table = get_modality_table(modality,table['TableName']) #return a df with the correct columns
+                record = []
+                for column in table["Columns"]:
+                    if '_' in column["ColumnName"]:
+                        #sequence todo
+                        # print('todo')
+                        record.append(None)
+                        continue
+                    else:
+                        if column["ColumnName"] == "RelativeFileArchiveURI":
+                            record.append(root_directory +'/'+filename)
+                            continue
+                        try:
+                            data_element = ds.data_element(column["ColumnName"])
+                            if data_element is None:
+                                record.append(None)
+                            else:
+                                record.append(data_element.value)
+                        except Exception as e:
+                            record.append(None)
+                
+                # modality_table.loc[modality_table.shape[0]] = record
+                # modality_tables[modality+'_'+table['TableName']] = modality_table
+                records.append((record,modality,table['TableName']))
+        except Exception as e:
+            print(e,traceback.format_exc())
+            # continue
+        return records
+
+
 def metadata_processor():
     start_time = time.time()
     with open("/config.yml") as ymlstream:
@@ -83,46 +131,16 @@ def metadata_processor():
         if source['type'] == 'pacs':
             print("PACS Not Implemented")
             root_directory = "./received_dicoms/"+name
-        for file in os.listdir(root_directory):
-            filename = os.fsdecode(file)
-            if filename.endswith('.dcm'):
-                file_count = file_count+1
-                ds = pydicom.dcmread(root_directory +'/'+filename)
-                try:
-                    modality = ds.Modality
-                    modality_config = get_modality_config_for_file(modality)
-                    if modality_config is None:
-                        print("modality not found", modality)
-                        continue
+        with ProcessPoolExecutor() as executor:
+            for result in list(executor.map(process, os.listdir(root_directory),repeat(root_directory))):
+                if result is not None:
+                    for r in result:
+                        if r is not None:
+                            modality_table = get_modality_table(r[1],r[2])
+                            modality_table.loc[modality_table.shape[0]] = r[0]
+                            modality_tables[r[1]+'_'+r[2]] = modality_table
+                    file_count = file_count+1
 
-                    tables = modality_config["Tables"]
-                    for table in tables:
-                        modality_table = get_modality_table(modality,table['TableName']) #return a df with the correct columns
-                        record = []
-                        for column in table["Columns"]:
-                            if '_' in column["ColumnName"]:
-                                #sequence todo
-                                # print('todo')
-                                record.append(None)
-                                continue
-                            else:
-                                if column["ColumnName"] == "RelativeFileArchiveURI":
-                                    record.append(root_directory +'/'+filename)
-                                    continue
-                                try:
-                                    data_element = ds.data_element(column["ColumnName"])
-                                    if data_element is None:
-                                        record.append(None)
-                                    else:
-                                        record.append(data_element.value)
-                                except Exception as e:
-                                    record.append(None)
-                        
-                        modality_table.loc[modality_table.shape[0]] = record
-                        modality_tables[modality+'_'+table['TableName']] = modality_table
-                except Exception as e:
-                    print(e,traceback.format_exc())
-                    continue
 
     end_time = time.time()
     print("Processed ", file_count, " files in", end_time-start_time, "s (", (end_time-start_time)/file_count,"s avg)")
