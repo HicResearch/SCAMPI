@@ -5,16 +5,17 @@ import numpy as np
 import pandas as pd
 from destination_writer.destination_writer import destination_writer
 import traceback
-
+import time
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
 modality_templates_location="/templates"
 
 config = None
 
 modality_configs = dict()
-
-
 modality_tables = dict()
+
+start_time = None
+end_time = None
 
 def get_modality_config_for_file(modality):
     modality_config = modality_configs.get(modality,None)
@@ -61,6 +62,7 @@ def get_modality_table(modality,table_name):
     return modality_tables.get(modality+'_'+table_name,None)
 
 def metadata_processor():
+    start_time = time.time()
     with open("/config.yml") as ymlstream:
         try:
             config  = yaml.safe_load(ymlstream)
@@ -68,6 +70,7 @@ def metadata_processor():
             # print(exc)
             raise RuntimeError(exc)
 
+    file_count=0
 
 
     for name, source in config['sources'].items():
@@ -83,6 +86,7 @@ def metadata_processor():
         for file in os.listdir(root_directory):
             filename = os.fsdecode(file)
             if filename.endswith('.dcm'):
+                file_count = file_count+1
                 ds = pydicom.dcmread(root_directory +'/'+filename)
                 try:
                     modality = ds.Modality
@@ -114,15 +118,14 @@ def metadata_processor():
                                 except Exception as e:
                                     record.append(None)
                         
-
-                        print(len(record),modality_table.shape)
                         modality_table.loc[modality_table.shape[0]] = record
                         modality_tables[modality+'_'+table['TableName']] = modality_table
                 except Exception as e:
                     print(e,traceback.format_exc())
                     continue
 
-
+    end_time = time.time()
+    print("Processed ", file_count, " files in", end_time-start_time, "s (", (end_time-start_time)/file_count,"s avg)")
     for key,value in modality_tables.items():
         destination_writer(key,value)
 
