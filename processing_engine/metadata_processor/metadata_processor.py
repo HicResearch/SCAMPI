@@ -44,22 +44,25 @@ def get_modality_table(modality,table_name):
     tables = modality_config["Tables"]
     for table in tables:
         df = pd.DataFrame()
-        pks = []##todo do something with this
         columns = table['Columns']
         for column in columns:
             df.insert(df.size,column['ColumnName'],[]) 
+            column_type = column.get('Type',None)
+            if column_type is not None:
+                if column_type["CSharpType"] == 'System.Int64':                
+                    df[column["ColumnName"]] = pd.to_numeric(df[column["ColumnName"]])
+                if column_type["CSharpType"] == 'System.String':  
+                    df[column["ColumnName"]] = pd.to_string(df[column["ColumnName"]])              
+                if column_type["CSharpType"] == 'System.Decimal':                
+                    df[column["ColumnName"]] =  df[column["ColumnName"]].astype(float)
+                if column_type["CSharpType"] == 'System.Double':                
+                    df[column["ColumnName"]] = df[column["ColumnName"]].astype(float)
+                if column_type["CSharpType"] == 'System.Date':     
+                    df[column["ColumnName"]] = pd.to_datetime(df[column["ColumnName"]])
+            
             is_pk = column.get('IsPrimaryKey',False)
             if is_pk:
                 pks.append(column['ColumnName'])
-            #todo allow nulls
-            #todo type
-            # column_type = column.get('Type',None)
-            # if column_type is not None:
-            #     if column_type["CSharpType"] == 'System.Int64':                
-            #     if column_type["CSharpType"] == 'System.String':                
-            #     if column_type["CSharpType"] == 'System.Decimal':                
-            #     if column_type["CSharpType"] == 'System.Double':                
-            #     if column_type["CSharpType"] == 'System.Date':                
         modality_tables[modality + '_'+table['TableName']]  = df# e.g. CT_StudyTable, CT_SeriesTable, CT_ImageTable
     return modality_tables.get(modality+'_'+table_name,None)
 
@@ -68,8 +71,7 @@ def process(file,root_directory):
     filename = os.fsdecode(file)
     records = []
     if filename.endswith('.dcm'):
-        # file_count = file_count+1
-        ds = pydicom.dcmread(root_directory +'/'+filename)
+        ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
         try:
             modality = ds.Modality
             modality_config = get_modality_config_for_file(modality)
@@ -83,9 +85,19 @@ def process(file,root_directory):
                 record = []
                 for column in table["Columns"]:
                     if '_' in column["ColumnName"]:
-                        #sequence todo
-                        # print('todo')
-                        record.append(None)
+                        dcm_path = column["ColumnName"].split('_')
+                        data_element = None
+                        for path_element in dcm_path:
+                            if  data_element is None
+                                data_element = ds.data_element(path_element)
+                            else 
+                                data_element = data_element.data_element(path_element)
+                            if data_element is None:
+                                break
+                        if data_element is None:
+                                record.append(None)
+                            else:
+                                record.append(data_element.value)
                         continue
                     else:
                         if column["ColumnName"] == "RelativeFileArchiveURI":
@@ -99,13 +111,9 @@ def process(file,root_directory):
                                 record.append(data_element.value)
                         except Exception as e:
                             record.append(None)
-                
-                # modality_table.loc[modality_table.shape[0]] = record
-                # modality_tables[modality+'_'+table['TableName']] = modality_table
                 records.append((record,modality,table['TableName']))
         except Exception as e:
             print(e,traceback.format_exc())
-            # continue
         return records
 
 
@@ -120,7 +128,6 @@ def metadata_processor():
 
     file_count=0
 
-
     for name, source in config['sources'].items():
         root_directory = None
         if source['type'] == 'filesystem':
@@ -132,16 +139,20 @@ def metadata_processor():
             print("PACS Not Implemented")
             root_directory = "./received_dicoms/"+name
         with ProcessPoolExecutor() as executor:
+            records_by_table = {}
             for result in list(executor.map(process, os.listdir(root_directory),repeat(root_directory))):
                 if result is not None:
                     for r in result:
                         if r is not None:
-                            modality_table = get_modality_table(r[1],r[2])
-                            modality_table.loc[modality_table.shape[0]] = r[0]
-                            modality_tables[r[1]+'_'+r[2]] = modality_table
+                            tr = records_by_table.get(r[1]+'_'+r[2],[])
+                            tr.append(r[0])
+                            records_by_table[r[1]+'_'+r[2]] = tr
                     file_count = file_count+1
-
-
+            for key, rows in records_by_table.items():
+                modality_table = get_modality_table(key.split('_')[0],key.split('_')[1])
+                additional_records_dt = pd.DataFrame(rows, columns=modality_table.columns)
+                modality_table = pd.concat([modality_table,additional_records_dt])
+                modality_tables[key] = modality_table
     end_time = time.time()
     print("Processed ", file_count, " files in", end_time-start_time, "s (", (end_time-start_time)/file_count,"s avg)")
     for key,value in modality_tables.items():

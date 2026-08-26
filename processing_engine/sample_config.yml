@@ -18,3 +18,4 @@ destination:
   metadata:
     dbType: MSSQL
     connectionString: mssql+pyodbc://scampi:scampi@host.docker.internal,1433/SCAMPI?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
+    index: some_column
