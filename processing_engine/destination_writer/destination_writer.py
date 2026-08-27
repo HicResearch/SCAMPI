@@ -12,17 +12,17 @@ def write_metadata(config,logger, table_name, dataframe):
         print(table_name,dataframe.shape)
         logger.debug({
             "message": f"Writing {dataframe.shape[0]} records to {table_name}",
-            "timestamp": datetime.datetime.utcnow() 
+            "timestamp": datetime.datetime.utcnow().timestamp() 
         })
         dataframe.to_sql(table_name,config['destination']['metadata']['connectionString'],if_exists="append",index=False,index_label=index)
         logger.debug({
             "message": f"Finished writing {dataframe.shape[0]} records to {table_name}",
-            "timestamp": datetime.datetime.utcnow() 
+            "timestamp": datetime.datetime.utcnow().timestamp()
         })
     else:
         logger.info({
             "message": f"{dbType} not implemented",
-            "timestamp": datetime.datetime.utcnow() 
+            "timestamp": datetime.datetime.utcnow().timestamp() 
         })
 
 

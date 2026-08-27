@@ -13,13 +13,13 @@ def source_extractor(config, logger):
             if not os.path.isdir(source['directory']):
                 logger.warn({
                     "message":source['directory'] + 'does not exist. Skipping',
-                    "timestamp": datetime.datetime.utcnow()
+                    "timestamp": datetime.datetime.utcnow().timestamp()
                 })
                 continue
             _, _, files = next(os.walk(source['directory']))
             logger.info({
                 "message":f'found {len(files)} files in {name} directory',
-                "timestamp": datetime.datetime.utcnow()
+                "timestamp": datetime.datetime.utcnow().timestamp()
             })
             continue;
         if source['type'] == 'pacs':
