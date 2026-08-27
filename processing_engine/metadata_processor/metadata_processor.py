@@ -6,12 +6,12 @@ import pandas as pd
 from destination_writer.destination_writer import destination_writer
 import traceback
 import time
+import datetime
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from itertools import repeat
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
 modality_templates_location="/templates"
 
-config = None
 
 modality_configs = dict()
 modality_tables = dict()
@@ -51,23 +51,23 @@ def get_modality_table(modality,table_name):
             if column_type is not None:
                 if column_type["CSharpType"] == 'System.Int64':                
                     df[column["ColumnName"]] = pd.to_numeric(df[column["ColumnName"]])
-                if column_type["CSharpType"] == 'System.String':  
-                    df[column["ColumnName"]] = pd.to_string(df[column["ColumnName"]])              
+                # if column_type["CSharpType"] == 'System.String':  
+                #     df[column["ColumnName"]] = pd.to_string(df[column["ColumnName"]])              
                 if column_type["CSharpType"] == 'System.Decimal':                
                     df[column["ColumnName"]] =  df[column["ColumnName"]].astype(float)
                 if column_type["CSharpType"] == 'System.Double':                
                     df[column["ColumnName"]] = df[column["ColumnName"]].astype(float)
                 if column_type["CSharpType"] == 'System.Date':     
                     df[column["ColumnName"]] = pd.to_datetime(df[column["ColumnName"]])
-            
-            is_pk = column.get('IsPrimaryKey',False)
-            if is_pk:
-                pks.append(column['ColumnName'])
+            ##TODO
+            # is_pk = column.get('IsPrimaryKey',False)
+            # if is_pk:
+            #     pks.append(column['ColumnName'])
         modality_tables[modality + '_'+table['TableName']]  = df# e.g. CT_StudyTable, CT_SeriesTable, CT_ImageTable
     return modality_tables.get(modality+'_'+table_name,None)
 
 
-def process(file,root_directory):
+def process(file,root_directory, logger):
     filename = os.fsdecode(file)
     records = []
     if filename.endswith('.dcm'):
@@ -76,8 +76,12 @@ def process(file,root_directory):
             modality = ds.Modality
             modality_config = get_modality_config_for_file(modality)
             if modality_config is None:
-                print("modality not found", modality)
-                # continue
+                logger.error({
+                    "message":f'modality {modality} not found',
+                    "timestamp": datetime.datetime.utcnow(),
+                    "modality":modality
+                })
+                return records
 
             tables = modality_config["Tables"]
             for table in tables:
@@ -87,17 +91,23 @@ def process(file,root_directory):
                     if '_' in column["ColumnName"]:
                         dcm_path = column["ColumnName"].split('_')
                         data_element = None
-                        for path_element in dcm_path:
-                            if  data_element is None
-                                data_element = ds.data_element(path_element)
-                            else 
-                                data_element = data_element.data_element(path_element)
-                            if data_element is None:
-                                break
+                        try:
+                            for path_element in dcm_path:
+                                if  data_element is None:
+                                    data_element = ds.data_element(path_element)
+                                else: 
+                                    data_element = data_element.data_element(path_element)
+                                if data_element is None:
+                                    break
+                        except Exception as e:
+                            logger.error({
+                                "message":e,
+                                "timestamp": datetime.datetime.utcnow()
+                            })
                         if data_element is None:
                                 record.append(None)
-                            else:
-                                record.append(data_element.value)
+                        else:
+                            record.append(data_element.value)
                         continue
                     else:
                         if column["ColumnName"] == "RelativeFileArchiveURI":
@@ -114,17 +124,19 @@ def process(file,root_directory):
                 records.append((record,modality,table['TableName']))
         except Exception as e:
             print(e,traceback.format_exc())
+            logger.error({
+                "message":e,
+                "timestamp": datetime.datetime.utcnow()
+            })
         return records
 
 
-def metadata_processor():
+def metadata_processor(config, logger):
     start_time = time.time()
-    with open("/config.yml") as ymlstream:
-        try:
-            config  = yaml.safe_load(ymlstream)
-        except yaml.YAMLError as exc:
-            # print(exc)
-            raise RuntimeError(exc)
+    logger.debug({
+        "message":'Starting metadata processing',
+        "timestamp": datetime.datetime.utcnow()
+    })
 
     file_count=0
 
@@ -132,15 +144,17 @@ def metadata_processor():
         root_directory = None
         if source['type'] == 'filesystem':
             if not os.path.isdir(source['directory']):
-                print(source['directory'] + 'does not exist. Skipping')
+                logger.warn({
+                    "message":source['directory'] + 'does not exist. Skipping',
+                    "timestamp": datetime.datetime.utcnow()
+                })
                 continue
             root_directory =source['directory']
         if source['type'] == 'pacs':
-            print("PACS Not Implemented")
             root_directory = "./received_dicoms/"+name
         with ProcessPoolExecutor() as executor:
             records_by_table = {}
-            for result in list(executor.map(process, os.listdir(root_directory),repeat(root_directory))):
+            for result in list(executor.map(process, os.listdir(root_directory),repeat(root_directory), repeat(logger))):
                 if result is not None:
                     for r in result:
                         if r is not None:
@@ -154,8 +168,17 @@ def metadata_processor():
                 modality_table = pd.concat([modality_table,additional_records_dt])
                 modality_tables[key] = modality_table
     end_time = time.time()
-    print("Processed ", file_count, " files in", end_time-start_time, "s (", (end_time-start_time)/file_count,"s avg)")
+    logger.info({
+        "message":"Processed "+ str(file_count) + " files in " + str(end_time-start_time) + "s (" + str((end_time-start_time)/file_count) +'s avg)',
+        "timestamp": datetime.datetime.utcnow(),
+        "file_count":file_count,
+        "duration": end_time-start_time
+    })
+    logger.debug({
+        "message":'Completed metadata processing',
+        "timestamp": datetime.datetime.utcnow()
+    })
     for key,value in modality_tables.items():
-        destination_writer(key,value)
+        destination_writer(config,logger,key,value)
 
 

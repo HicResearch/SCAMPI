@@ -4,22 +4,23 @@ from pydicom.dataset import Dataset
 from pynetdicom import AE
 from pynetdicom.sop_class import PatientRootQueryRetrieveInformationModelMove
 import subprocess
-config = None
+import datetime
 
 
-def source_extractor():
-    with open("/config.yml") as ymlstream:
-        try:
-            config  = yaml.safe_load(ymlstream)
-        except yaml.YAMLError as exc:
-            print(exc)
-            return
-
+def source_extractor(config, logger):
     for name, source in config['sources'].items():
         if source['type'] == 'filesystem':
             if not os.path.isdir(source['directory']):
-                print(source['directory'] + 'does not exist. Skipping')
+                logger.warn({
+                    "message":source['directory'] + 'does not exist. Skipping',
+                    "timestamp": datetime.datetime.utcnow()
+                })
                 continue
+            _, _, files = next(os.walk(source['directory']))
+            logger.info({
+                "message":f'found {len(files)} files in {name} directory',
+                "timestamp": datetime.datetime.utcnow()
+            })
             continue;
         if source['type'] == 'pacs':
             #fetch the matching files and write them somewhere
@@ -37,5 +38,5 @@ def source_extractor():
             key_string = ""
             if len(keys) >0:
                 key_string = f"-k {keys.join(' -k ')}"
-            os.popen(f"python -m pynetdicom movescvu -aet {aet} -aec {aec} -aem {aem} -S --od {OUTPUT_DIR} --store --store-port{store_port} -pdu {pdu} {ip} {port} {key_string}")
+            os.popen(f"python -m pynetdicom movescvu -aet {aet} -aec {aec} -aem {aem} -S --od {OUTPUT_DIR} --store --store-port{store_port} -pdu {pdu} {ip} {port} {key_string}")##TODO logging
             continue;
