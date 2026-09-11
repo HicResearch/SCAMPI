@@ -60,9 +60,4 @@ volumes:
 #       localhost 4242
 #
 #   Option B — run storescp separately, then movescu:
-#     storescp --output-directory ./received 11113 &
-#     movescu -v \
-#       -aet LOCALMACHINE -aec ORTHANC -aem LOCALMACHINE \
-#       -k QueryRetrieveLevel=STUDY \
-#       -k StudyInstanceUID=<uid> \
-#       localhost 4242
+#     storescp --output-directory ./received 11113 &     movescu -v -aet LOCALMACHINE -aec ORTHANC -aem LOCALMACHINE -k QueryRetrieveLevel=STUDY -k StudyInstanceUID=<uid> localhost 4242
