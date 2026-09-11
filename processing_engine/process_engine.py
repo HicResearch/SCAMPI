@@ -9,7 +9,7 @@ from pythonjsonlogger.json import JsonFormatter
 def run():
 
     logger = logging.getLogger()
-    logging.basicConfig(filename=f'/SCAMPI/logs/{datetime.datetime.utcnow().timestamp()}.log', encoding='utf-8', level=logging.DEBUG)##TODO put this log somewhere sensible
+    logging.basicConfig(filename=f'/SCAMPI/logs/{datetime.datetime.now(datetime.UTC).timestamp()}.log', encoding='utf-8', level=logging.DEBUG)##TODO put this log somewhere sensible
     logHandler = logging.StreamHandler()
     formatter = JsonFormatter()
     logHandler.setFormatter(formatter)
@@ -22,7 +22,7 @@ def run():
         except yaml.YAMLError as exc:
             logger.error({
                 "message":exc,
-                "timestamp": datetime.datetime.utcnow().timestamp()
+                "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
             })
             raise RuntimeError(exc)
 

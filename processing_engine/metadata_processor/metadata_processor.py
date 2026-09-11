@@ -78,7 +78,7 @@ def process(file,root_directory, logger):
             if modality_config is None:
                 logger.error({
                     "message":f'modality {modality} not found',
-                    "timestamp": datetime.datetime.utcnow().timestamp(),
+                    "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
                     "modality":modality
                 })
                 return records
@@ -102,7 +102,7 @@ def process(file,root_directory, logger):
                         except Exception as e:
                             logger.error({
                                 "message":e,
-                                "timestamp": datetime.datetime.utcnow()
+                                "timestamp": datetime.datetime.now(datetime.UTC)
                             })
                         if data_element is None:
                                 record.append(None)
@@ -126,7 +126,7 @@ def process(file,root_directory, logger):
             print(e,traceback.format_exc())
             logger.error({
                 "message":e,
-                "timestamp": datetime.datetime.utcnow().timestamp()
+                "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
             })
         return records
 
@@ -135,7 +135,7 @@ def metadata_processor(config, logger):
     start_time = time.time()
     logger.debug({
         "message":'Starting metadata processing',
-        "timestamp": datetime.datetime.utcnow().timestamp()
+        "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
     })
 
     file_count=0
@@ -146,7 +146,7 @@ def metadata_processor(config, logger):
             if not os.path.isdir(source['directory']):
                 logger.warn({
                     "message":source['directory'] + 'does not exist. Skipping',
-                    "timestamp": datetime.datetime.utcnow().timestamp()
+                    "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
                 })
                 continue
             root_directory =source['directory']
@@ -170,13 +170,13 @@ def metadata_processor(config, logger):
     end_time = time.time()
     logger.info({
         "message":"Processed "+ str(file_count) + " files in " + str(end_time-start_time) + "s (" + str((end_time-start_time)/file_count) +'s avg)',
-        "timestamp": datetime.datetime.utcnow().timestamp(),
+        "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
         "file_count":file_count,
         "duration": end_time-start_time
     })
     logger.debug({
         "message":'Completed metadata processing',
-        "timestamp": datetime.datetime.utcnow().timestamp()
+        "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
     })
     for key,value in modality_tables.items():
         destination_writer(config,logger,key,value)
