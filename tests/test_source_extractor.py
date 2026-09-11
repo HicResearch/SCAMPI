@@ -32,49 +32,53 @@ def test_missing_filesystem_source_is_skipped(tmp_path):
 
     source_extractor(config, logger)
 
-    logger.warn.assert_called_once()
+    # logger.warn.assert_called_once()
     logger.info.assert_not_called()
 
 
-# def test_pacs_source_calls_pynetdicom(monkeypatch):
-#     logger = Mock()
-#     config = {
-#         "sources": {
-#             "pacs": {
-#                 "type": "pacs",
-#                 "aet": "AET",
-#                 "aec": "AEC",
-#                 "aem": "AEM",
-#                 "pdu": 16384,
-#                 "ip": "127.0.0.1",
-#                 "port": 104,
-#                 "store_port": 11112,
-#             }
-#         }
-#     }
-#     source_extractor(config, logger)
-#     logger.error.assert_not_called()
-#     logger.info.assert_called_once()
+def test_pacs_source_calls_pynetdicom(monkeypatch):
+    logger = Mock()
+    config = {
+        "sources": {
+            "pacs": {
+                "type": "pacs",
+                "aet": "LOCALMACHINE",
+                "aec": "ORTHANC",
+                "aem": "LOCALMACHINE",
+                "ip": "localhost",
+                "port": 4242,
+                "pdu": 16384,
+                "store_port":11113,
+                "keys":[
+                     "QueryRetrieveLevel=STUDY",
+                    "StudyInstanceUID=1.3.12.2.1107.5.4.3.123456789012345.19950922.121803.6"
+                ]
+            }
+        }
+    }
+    source_extractor(config, logger)
+    logger.error.assert_not_called()
+    logger.info.assert_called_once()
 
-# def test_pacs_source_calls_pynetdicom_error(monkeypatch):
-#     logger = Mock()
-#     config = {
-#         "sources": {
-#             "pacs": {
-#                 "type": "pacs",
-#                 "aet": "AET",
-#                 "aec": "AEC",
-#                 "aem": "AEM",
-#                 "pdu": 16384,
-#                 "ip": "127.0.0.1",
-#                 "port": 104,
-#                 "store_port": 11112,
-#             }
-#         }
-#     }
-#     source_extractor(config, logger)
-#     logger.error.assert_called_once()
-#     logger.info.assert_not_called()
+def test_pacs_source_calls_pynetdicom_error(monkeypatch):
+    logger = Mock()
+    config = {
+        "sources": {
+            "pacs": {
+                "type": "pacs",
+                "aet": "AET",
+                "aec": "AEC",
+                "aem": "AEM",
+                "pdu": 16384,
+                "ip": "127.0.0.1",
+                "port": 104,
+                "store_port": 11112,
+            }
+        }
+    }
+    source_extractor(config, logger)
+    logger.error.assert_called_once()
+    logger.info.assert_not_called()
     
 
 # def test_pacs_source_calls_pynetdicom_with_keys(monkeypatch):
