@@ -169,7 +169,7 @@ def metadata_processor(config, logger):
                 modality_tables[key] = modality_table
     end_time = time.time()
     logger.info({
-        "message":"Processed "+ str(file_count) + " files in " + str(end_time-start_time) + "s (" + str((end_time-start_time)/file_count) +'s avg)',
+        "message":"Processed "+ str(file_count) + " files in " + str(end_time-start_time) + "s (" + str((end_time-start_time)/max(file_count,1)) +'s avg)',
         "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
         "file_count":file_count,
         "duration": end_time-start_time

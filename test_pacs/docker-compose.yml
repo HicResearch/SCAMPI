@@ -8,26 +8,7 @@ services:
       - "8042:8042"   # Web UI — http://localhost:8042
     volumes:
       - orthanc-storage:/var/lib/orthanc/db:Z
-    environment:
-      ORTHANC_JSON: |
-        {
-          "Name": "TestPACS",
-          "DicomAet": "ORTHANC",
-          "DicomPort": 4242,
-          "AuthenticationEnabled": false,
-          "DicomAlwaysAllowStore": true,
-          "DicomAlwaysAllowFind": true,
-          "DicomAlwaysAllowGet": true,
-          "DicomAlwaysAllowMove": true,
-          "DicomCheckCalledAet": false,
-          "DicomModalities": {
-            "LOCALMACHINE": {
-              "AET": "LOCALMACHINE",
-              "Host": "host.docker.internal",
-              "Port": 11113
-            }
-          }
-        }
+      - ./orthanc.json:/etc/orthanc/orthanc.json:ro
 
 volumes:
   orthanc-storage:
