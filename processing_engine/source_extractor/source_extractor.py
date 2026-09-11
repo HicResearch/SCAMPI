@@ -25,7 +25,7 @@ def source_extractor(config, logger):
             continue;
         if source['type'] == 'pacs':
             #fetch the matching files and write them somewhere
-            OUTPUT_DIR = Path("./received_dicoms/"+name)
+            OUTPUT_DIR = pathlib.Path("./received_dicoms/"+name)
             OUTPUT_DIR.mkdir(exist_ok=True)
             aet = source["aet"]
             aec = source["aec"]

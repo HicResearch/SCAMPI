@@ -1,0 +1,68 @@
+services:
+
+  orthanc:
+    image: orthancteam/orthanc
+    restart: unless-stopped
+    ports:
+      - "4242:4242"   # DICOM port — target for findscu / movescu
+      - "8042:8042"   # Web UI — http://localhost:8042
+    volumes:
+      - orthanc-storage:/var/lib/orthanc/db:Z
+    environment:
+      ORTHANC_JSON: |
+        {
+          "Name": "TestPACS",
+          "DicomAet": "ORTHANC",
+          "DicomPort": 4242,
+          "AuthenticationEnabled": false,
+          "DicomAlwaysAllowStore": true,
+          "DicomAlwaysAllowFind": true,
+          "DicomAlwaysAllowGet": true,
+          "DicomAlwaysAllowMove": true,
+          "DicomCheckCalledAet": false,
+          "DicomModalities": {
+            "LOCALMACHINE": {
+              "AET": "LOCALMACHINE",
+              "Host": "host.docker.internal",
+              "Port": 11113
+            }
+          }
+        }
+
+volumes:
+  orthanc-storage:
+
+# ---------------------------------------------------------------------------
+# Usage
+# ---------------------------------------------------------------------------
+#
+# Start:
+#   docker compose up -d
+#
+# Load a test image:
+#   storescu -aec ORTHANC localhost 4242 your_image.dcm
+#   (or drag-and-drop via the web UI at http://localhost:8042)
+#
+# C-FIND (query):
+#   findscu -v -aet LOCALMACHINE -aec ORTHANC -k QueryRetrieveLevel=STUDY -k PatientName="*" localhost 4242
+#
+# C-MOVE (retrieve):
+#   Orthanc will push images back to LOCALMACHINE (host.docker.internal:11113).
+#   You must have a storage SCP listening on port 11113 first:
+#
+#   Option A — use movescu as its own SCP (simplest):
+#     movescu -v \
+#       -aet LOCALMACHINE -aec ORTHANC -aem LOCALMACHINE \
+#       --store --store-port 11113 \
+#       --output-directory ./received \
+#       -k QueryRetrieveLevel=STUDY \
+#       -k StudyInstanceUID=<uid> \
+#       localhost 4242
+#
+#   Option B — run storescp separately, then movescu:
+#     storescp --output-directory ./received 11113 &
+#     movescu -v \
+#       -aet LOCALMACHINE -aec ORTHANC -aem LOCALMACHINE \
+#       -k QueryRetrieveLevel=STUDY \
+#       -k StudyInstanceUID=<uid> \
+#       localhost 4242
