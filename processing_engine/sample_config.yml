@@ -2,6 +2,8 @@ sources:
   friendly_name:
     type: filesystem
     directory: /my_images
+    file_regex: .*
+    include_archives: True
   other_friendly_name:
     type: pacs
     aet: LOCALMACHINE

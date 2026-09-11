@@ -2,7 +2,7 @@ import os
 import pathlib
 import datetime
 import threading
-
+import re
 from pydicom.dataset import Dataset
 from pynetdicom import AE, evt, AllStoragePresentationContexts
 from pynetdicom.sop_class import PatientRootQueryRetrieveInformationModelMove
@@ -61,7 +61,7 @@ def _cmove(aet, aec, aem, ip, port, store_port, identifier, output_dir, pdu, log
         try:
             responses = assoc.send_c_move(
                 identifier,
-                aet,
+                aem,
                 PatientRootQueryRetrieveInformationModelMove,
             )
             for status, sub_identifier in responses:
@@ -101,9 +101,18 @@ def source_extractor(config, logger):
                     "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
                 })
                 continue
-            _, _, files = next(os.walk(source['directory']))
+            included_extensions= ['dcm','DCM']
+            if(source.get("include_archives",None )is not None):
+                included_extensions.append('7z')
+                included_extensions.append('zip')
+            #TODO this should maybe do nested directories
+            file_names = [fn for fn in os.listdir(source['directory'])
+              if any(fn.endswith(ext) for ext in included_extensions)]
+            file_regex = source.get("file_regex",None)
+            if(file_regex is not None):
+                file_names = [fn for fn in file_names if re.match(f'{file_regex}',fn)]
             logger.info({
-                "message": f"found {len(files)} files in {name} directory",
+                "message": f"found {len(file_names)} files in {name} directory",
                 "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
             })
             continue

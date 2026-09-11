@@ -9,6 +9,10 @@ import time
 import datetime
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from itertools import repeat
+import re
+import py7zr
+import zipfile
+import io
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
 modality_templates_location="/templates"
 
@@ -67,68 +71,81 @@ def get_modality_table(modality,table_name):
     return modality_tables.get(modality+'_'+table_name,None)
 
 
+def _datasetProcess(ds,root_directory,filename,logger):
+    records = []
+    try:
+        modality = ds.Modality
+        modality_config = get_modality_config_for_file(modality)
+        if modality_config is None:
+            logger.error({
+                "message":f'modality {modality} not found',
+                "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
+                "modality":modality
+            })
+            return records
+
+        tables = modality_config["Tables"]
+        for table in tables:
+            modality_table = get_modality_table(modality,table['TableName']) #return a df with the correct columns
+            record = []
+            for column in table["Columns"]:
+                if '_' in column["ColumnName"]:
+                    dcm_path = column["ColumnName"].split('_')
+                    data_element = None
+                    try:
+                        for path_element in dcm_path:
+                            if  data_element is None:
+                                data_element = ds.data_element(path_element)
+                            else: 
+                                data_element = data_element.data_element(path_element)
+                            if data_element is None:
+                                break
+                    except Exception as e:
+                        logger.error({
+                            "message":e,
+                            "timestamp": datetime.datetime.now(datetime.UTC)
+                        })
+                    if data_element is None:
+                            record.append(None)
+                    else:
+                        record.append(data_element.value)
+                    continue
+                else:
+                    if column["ColumnName"] == "RelativeFileArchiveURI":
+                        record.append(root_directory +'/'+filename)
+                        continue
+                    try:
+                        data_element = ds.data_element(column["ColumnName"])
+                        if data_element is None:
+                            record.append(None)
+                        else:
+                            record.append(data_element.value)
+                    except Exception as e:
+                        record.append(None)
+            records.append((record,modality,table['TableName']))
+    except Exception as e:
+        print(e,traceback.format_exc())
+        logger.error({
+            "message":e,
+            "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
+        })
+    return records
+
 def process(file,root_directory, logger):
     filename = os.fsdecode(file)
     records = []
     if filename.endswith('.dcm'):
         ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
-        try:
-            modality = ds.Modality
-            modality_config = get_modality_config_for_file(modality)
-            if modality_config is None:
-                logger.error({
-                    "message":f'modality {modality} not found',
-                    "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
-                    "modality":modality
-                })
-                return records
-
-            tables = modality_config["Tables"]
-            for table in tables:
-                modality_table = get_modality_table(modality,table['TableName']) #return a df with the correct columns
-                record = []
-                for column in table["Columns"]:
-                    if '_' in column["ColumnName"]:
-                        dcm_path = column["ColumnName"].split('_')
-                        data_element = None
-                        try:
-                            for path_element in dcm_path:
-                                if  data_element is None:
-                                    data_element = ds.data_element(path_element)
-                                else: 
-                                    data_element = data_element.data_element(path_element)
-                                if data_element is None:
-                                    break
-                        except Exception as e:
-                            logger.error({
-                                "message":e,
-                                "timestamp": datetime.datetime.now(datetime.UTC)
-                            })
-                        if data_element is None:
-                                record.append(None)
-                        else:
-                            record.append(data_element.value)
-                        continue
-                    else:
-                        if column["ColumnName"] == "RelativeFileArchiveURI":
-                            record.append(root_directory +'/'+filename)
-                            continue
-                        try:
-                            data_element = ds.data_element(column["ColumnName"])
-                            if data_element is None:
-                                record.append(None)
-                            else:
-                                record.append(data_element.value)
-                        except Exception as e:
-                            record.append(None)
-                records.append((record,modality,table['TableName']))
-        except Exception as e:
-            print(e,traceback.format_exc())
-            logger.error({
-                "message":e,
-                "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
-            })
-        return records
+        _datasetProcess(ds,filename,root_directory,logger)
+    elif filename.endswith('7z'):
+        with py7zr.SevenZipFile("archive.7z", mode="r") as z:
+            files = z.readall()  # returns dict[str, BytesIO]
+            records = [_datasetProcess(pydicom.dcmread(f,name,root_directory+'/'+file+'!'),) for name,f in files.items()].flatten()
+    elif filename.endswith('zip'):
+            with zipfile.ZipFile("archive.zip", "r") as z:
+                names = z.namelist()
+                records = [_datasetProcess(pydicom.dcmread(z.open(f),name,root_directory+'/'+file+'!'),) for name in names].flatten()
+    return records
 
 
 def metadata_processor(config, logger):
@@ -139,7 +156,8 @@ def metadata_processor(config, logger):
     })
 
     file_count=0
-
+    file_regex = config.get("file_regex",None)
+    include_archives = config.get("include_archives",None)
     for name, source in config['sources'].items():
         root_directory = None
         if source['type'] == 'filesystem':
@@ -154,7 +172,19 @@ def metadata_processor(config, logger):
             root_directory = "./received_dicoms/"+name
         with ProcessPoolExecutor() as executor:
             records_by_table = {}
-            for result in list(executor.map(process, os.listdir(root_directory),repeat(root_directory), repeat(logger))):
+            files = None
+            included_extensions= ['dcm','DCM']
+            if(source.get("include_archives",None )is not None):
+                included_extensions.append('7z')
+                included_extensions.append('zip')
+
+            if file_regex:
+                files = [fn for fn in os.listdir(source['directory'])
+                if any(fn.endswith(ext) for ext in included_extensions) and re.match(f'{file_regex}',fn)]
+            else:   
+                files = [fn for fn in os.listdir(source['directory'])
+                                if any(fn.endswith(ext) for ext in included_extensions)]
+            for result in list(executor.map(process, files,repeat(root_directory), repeat(logger))):
                 if result is not None:
                     for r in result:
                         if r is not None:
