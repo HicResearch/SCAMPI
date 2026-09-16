@@ -136,13 +136,13 @@ def process(file,root_directory, logger):
     records = []
     if filename.endswith('.dcm'):
         ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
-        _datasetProcess(ds,filename,root_directory,logger)
+        records = _datasetProcess(ds,filename,root_directory,logger)
     elif filename.endswith('7z'):
-        with py7zr.SevenZipFile("archive.7z", mode="r") as z:
+        with py7zr.SevenZipFile(os.path.join(root_directory, filename), mode="r") as z:
             files = z.readall()  # returns dict[str, BytesIO]
             records = [_datasetProcess(pydicom.dcmread(f,name,root_directory+'/'+file+'!'),) for name,f in files.items()].flatten()
     elif filename.endswith('zip'):
-            with zipfile.ZipFile("archive.zip", "r") as z:
+            with zipfile.ZipFile(os.path.join(root_directory, filename), "r") as z:
                 names = z.namelist()
                 records = [_datasetProcess(pydicom.dcmread(z.open(f),name,root_directory+'/'+file+'!'),) for name in names].flatten()
     return records
@@ -179,10 +179,10 @@ def metadata_processor(config, logger):
                 included_extensions.append('zip')
 
             if file_regex:
-                files = [fn for fn in os.listdir(source['directory'])
+                files = [fn for fn in os.listdir(root_directory)
                 if any(fn.endswith(ext) for ext in included_extensions) and re.match(f'{file_regex}',fn)]
             else:   
-                files = [fn for fn in os.listdir(source['directory'])
+                files = [fn for fn in os.listdir(root_directory)
                                 if any(fn.endswith(ext) for ext in included_extensions)]
             for result in list(executor.map(process, files,repeat(root_directory), repeat(logger))):
                 if result is not None:
