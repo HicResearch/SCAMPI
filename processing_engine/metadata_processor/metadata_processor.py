@@ -136,7 +136,7 @@ def process(file,root_directory, logger):
     records = []
     if filename.endswith('.dcm'):
         ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
-        records = _datasetProcess(ds,filename,root_directory,logger)
+        records = _datasetProcess(ds,root_directory,filename,logger)
     elif filename.endswith('7z'):
         with py7zr.SevenZipFile(os.path.join(root_directory, filename), mode="r") as z:
             files = z.readall()  # returns dict[str, BytesIO]

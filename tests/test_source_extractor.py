@@ -111,7 +111,7 @@ def test_cmove_returns_empty_list_when_association_fails(mock_ae, tmp_path):
 
 def test_cmove_sends_move_with_correct_destination(mock_ae, tmp_path):
     _, _, assoc, _ = mock_ae
-    _cmove_defaults(tmp_path, Mock(), aet="LOCALMACHINE")
+    _cmove_defaults(tmp_path, Mock(), aem="LOCALMACHINE")
     assert assoc.send_c_move.call_args.args[1] == "LOCALMACHINE"
 
 
@@ -217,6 +217,7 @@ def test_cmove_received_count_reflects_stored_files(mock_ae, tmp_path):
         with patch.object(ds, "save_as"):
             handler(ev)
 
+    print(logger.info.call_args.args[0])
     assert logger.info.call_args.args[0]["recieved"] == 3
 
 

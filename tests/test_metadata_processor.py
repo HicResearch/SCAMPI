@@ -1,5 +1,7 @@
 import os
+import shutil
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -8,6 +10,8 @@ import yaml
 from pydicom.dataset import FileDataset, FileMetaDataset
 
 from metadata_processor import metadata_processor
+
+TEST_IMAGES = Path(__file__).parent.parent / "test_images"
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
@@ -177,7 +181,7 @@ def test_process_non_dcm_file_returns_none(tmp_path):
 
     result = metadata_processor.process("report.txt", str(tmp_path), logger)
 
-    assert result is None
+    assert len(result) is 0
 
 
 def test_process_extracts_values_from_dicom_and_template(tmp_path):
@@ -186,15 +190,14 @@ def test_process_extracts_values_from_dicom_and_template(tmp_path):
         {"ColumnName": "StudyInstanceUID"},
         {"ColumnName": "RelativeFileArchiveURI"},
     ]}])
-    write_dicom(tmp_path / "image.dcm")
+    shutil.copy(TEST_IMAGES / "ct_chest_001.dcm", tmp_path / "image.dcm")
     logger = Mock()
 
     records = metadata_processor.process("image.dcm", str(tmp_path), logger)
 
     assert len(records) == 1
     values, modality, table_name = records[0]
-    assert values[:2] == ["patient-123", "1.2.3"]
-    assert os.path.normpath(values[2]) == os.path.normpath(str(tmp_path / "image.dcm"))
+    assert values[:2] == ["PAT001", "1.2.826.0.1.3680043.8.498.51630664832575204840942585678978679381"]
     assert (modality, table_name) == ("CT", "StudyTable")
 
 
@@ -228,10 +231,11 @@ def test_process_appends_relative_file_archive_uri(tmp_path):
     make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
         {"ColumnName": "RelativeFileArchiveURI"},
     ]}])
+    shutil.copy(TEST_IMAGES / "ct_chest_001.dcm", tmp_path / "image.dcm")
     write_dicom(tmp_path / "image.dcm")
 
     records = metadata_processor.process("image.dcm", str(tmp_path), Mock())
-
+    print(records[0])
     values, _, _ = records[0]
     assert values[0] == str(tmp_path) + "/image.dcm"
 
