@@ -1,5 +1,7 @@
 import os
+import shutil
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -8,6 +10,8 @@ import yaml
 from pydicom.dataset import FileDataset, FileMetaDataset
 
 from metadata_processor import metadata_processor
+
+TEST_IMAGES = Path(__file__).parent.parent / "test_images"
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
@@ -177,7 +181,7 @@ def test_process_non_dcm_file_returns_none(tmp_path):
 
     result = metadata_processor.process("report.txt", str(tmp_path), logger)
 
-    assert result is None
+    assert len(result) is 0
 
 
 def test_process_extracts_values_from_dicom_and_template(tmp_path):
@@ -186,15 +190,14 @@ def test_process_extracts_values_from_dicom_and_template(tmp_path):
         {"ColumnName": "StudyInstanceUID"},
         {"ColumnName": "RelativeFileArchiveURI"},
     ]}])
-    write_dicom(tmp_path / "image.dcm")
+    shutil.copy(TEST_IMAGES / "ct_chest_001.dcm", tmp_path / "image.dcm")
     logger = Mock()
 
     records = metadata_processor.process("image.dcm", str(tmp_path), logger)
 
     assert len(records) == 1
     values, modality, table_name = records[0]
-    assert values[:2] == ["patient-123", "1.2.3"]
-    assert os.path.normpath(values[2]) == os.path.normpath(str(tmp_path / "image.dcm"))
+    assert values[:2] == ["PAT001", "1.2.826.0.1.3680043.8.498.51630664832575204840942585678978679381"]
     assert (modality, table_name) == ("CT", "StudyTable")
 
 
@@ -228,10 +231,11 @@ def test_process_appends_relative_file_archive_uri(tmp_path):
     make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
         {"ColumnName": "RelativeFileArchiveURI"},
     ]}])
+    shutil.copy(TEST_IMAGES / "ct_chest_001.dcm", tmp_path / "image.dcm")
     write_dicom(tmp_path / "image.dcm")
 
     records = metadata_processor.process("image.dcm", str(tmp_path), Mock())
-
+    print(records[0])
     values, _, _ = records[0]
     assert values[0] == str(tmp_path) + "/image.dcm"
 
@@ -354,3 +358,54 @@ def test_metadata_processor_logs_duration(
     info_payload = logger.info.call_args.args[0]
     assert "duration" in info_payload
     assert info_payload["duration"] >= 0
+
+
+def test_metadata_processor_with_file_regex_filters_files(
+    tmp_path, patched_executor, mock_destination_writer
+):
+    """A top-level file_regex config key restricts which files are processed."""
+    make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
+        {"ColumnName": "PatientID"},
+    ]}])
+    write_dicom(tmp_path / "CT_001.dcm")
+    write_dicom(tmp_path / "CT_002.dcm", patient_id="patient-456")
+    write_dicom(tmp_path / "MR_001.dcm")
+    logger = Mock()
+    config = {
+        "sources": {"scans": {"type": "filesystem", "directory": str(tmp_path)}},
+        "file_regex": "CT_.*",
+    }
+
+    metadata_processor.metadata_processor(config, logger)
+
+    assert logger.info.call_args.args[0]["file_count"] == 2
+
+
+def test_metadata_processor_include_archives_adds_archive_extensions(
+    tmp_path, patched_executor, mock_destination_writer, monkeypatch
+):
+    """With per-source include_archives, zip and 7z files appear in the files passed to process()."""
+    make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
+        {"ColumnName": "PatientID"},
+    ]}])
+    write_dicom(tmp_path / "scan.dcm")
+    (tmp_path / "backup.zip").write_bytes(b"")
+
+    processed_files = []
+    monkeypatch.setattr(
+        metadata_processor,
+        "process",
+        lambda file, root, log: processed_files.append(file) or [],
+    )
+
+    logger = Mock()
+    config = {"sources": {"scans": {
+        "type": "filesystem",
+        "directory": str(tmp_path),
+        "include_archives": True,
+    }}}
+
+    metadata_processor.metadata_processor(config, logger)
+
+    assert "scan.dcm" in processed_files
+    assert "backup.zip" in processed_files

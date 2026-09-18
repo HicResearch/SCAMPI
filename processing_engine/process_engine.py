@@ -7,9 +7,8 @@ from pythonjsonlogger.json import JsonFormatter
 
 
 def run():
-
+    logger = logging.getLogger()
     logging.basicConfig(filename=f'/SCAMPI/logs/{datetime.datetime.now(datetime.UTC).timestamp()}.log', encoding='utf-8', level=logging.DEBUG)##TODO put this log somewhere sensible
-    logging.basicConfig(filename=f'scampi.log', encoding='utf-8', level=logging.DEBUG)##TODO put this log somewhere sensible
     logHandler = logging.StreamHandler()
     formatter = JsonFormatter()
     logHandler.setFormatter(formatter)

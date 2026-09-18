@@ -1,0 +1,19 @@
+{
+  "Name": "TestPACS",
+  "DicomAet": "ORTHANC",
+  "DicomPort": 4242,
+  "HttpPort": 8042,
+  "AuthenticationEnabled": false,
+  "DicomAlwaysAllowStore": true,
+  "DicomAlwaysAllowFind": true,
+  "DicomAlwaysAllowGet": true,
+  "DicomAlwaysAllowMove": true,
+  "DicomCheckCalledAet": false,
+  "DicomModalities": {
+    "LOCALMACHINE": {
+      "AET": "LOCALMACHINE",
+      "Host": "host.docker.internal",
+      "Port": 11113
+    }
+  }
+}
