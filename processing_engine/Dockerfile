@@ -1,4 +1,4 @@
-FROM alpine:3.24
+FROM python:3.13-alpine
 WORKDIR /SCAMPI
 ENV PYTHONUNBUFFERED=1
 RUN apk add --update --no-cache python3
@@ -6,6 +6,7 @@ RUN apk add --update --no-cache python3
 
 # Install dependencies
 RUN apk --no-cache add curl gnupg
+RUN apk add --no-cache gcc g++ musl-dev xz-dev
 
 
 #Download the desired package(s)
@@ -25,9 +26,12 @@ RUN apk add --allow-untrusted msodbcsql18_18.6.2.1-1_amd64.apk
 RUN apk add --allow-untrusted mssql-tools18_18.6.2.1-1_amd64.apk
 
 RUN python3 -m venv venv
+RUN ./venv/bin/pip install py7zr
+
 # RUN apk add py3-pip
 # RUN python3 -m ensurepip
 # RUN python3 -m pip install --upgrade pip
+
 RUN ./venv/bin/pip install --no-cache --upgrade pip setuptools
 COPY . .
 

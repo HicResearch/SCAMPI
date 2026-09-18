@@ -12,6 +12,7 @@ from itertools import repeat
 import re
 import zipfile
 import io
+import py7zr
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
 modality_templates_location="/templates"
 
@@ -137,14 +138,15 @@ def process(file,root_directory, logger):
     if filename.endswith('.dcm'):
         ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
         records = _datasetProcess(ds,root_directory,filename,logger)
-    elif filename.endswith('7z'):
-        print('todo')
-        # with py7zr.SevenZipFile(os.path.join(root_directory, filename), mode="r") as z:
-        #     records = [_datasetProcess(pydicom.dcmread(f,name,root_directory+'/'+file+'!'),) for name,f in files.items()].flatten()
-    elif filename.endswith('zip'):
-            with zipfile.ZipFile(os.path.join(root_directory, filename), "r") as z:
-                names = z.namelist()
-                records = [_datasetProcess(pydicom.dcmread(z.open(f),name,root_directory+'/'+file+'!'),) for name in names].flatten()
+    # elif filename.endswith('7z'):
+    #     with py7zr.SevenZipFile(os.path.join(root_directory, filename), mode="r") as z:
+    #         names = z.getnames();
+    #         data = z.read()
+    #         records = [_datasetProcess(pydicom.dcmread(f,name,root_directory+'/'+file+'!'),) for name,f in zip(names,data)].flatten()
+    # elif filename.endswith('zip'):
+    #         with zipfile.ZipFile(os.path.join(root_directory, filename), "r") as z:
+    #             names = z.namelist()
+    #             records = [_datasetProcess(pydicom.dcmread(z.open(f),name,root_directory+'/'+file+'!'),) for name in names].flatten()
     return records
 
 

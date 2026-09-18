@@ -30,9 +30,7 @@ def write_metadata(config,logger, table_name, dataframe):
         destination =  config['destination']['files']['directory']
         for index, row in df_to_write.iterrows():
              if row.get("RelativeFileArchiveURI") is not None:
-                print(row)
                 destination_file = get_destination_location(row,destination)
-                print('df',destination_file)
                 if destination_file is not None:
                     df_to_write.at[index,'RelativeFileArchiveURI'] = destination_file
 
