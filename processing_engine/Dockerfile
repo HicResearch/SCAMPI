@@ -31,6 +31,5 @@ RUN python3 -m venv venv
 RUN ./venv/bin/pip install --no-cache --upgrade pip setuptools
 COPY . .
 
-
 RUN ./venv/bin/pip install -r ./requirements.txt
 CMD ["./venv/bin/python", "./process_engine.py"]

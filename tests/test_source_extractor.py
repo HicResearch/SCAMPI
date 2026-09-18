@@ -304,3 +304,72 @@ def test_pacs_source_builds_identifier_from_keys(mock_cmove):
 def test_pacs_source_passes_pdu(mock_cmove):
     source_extractor(_pacs_config(pdu=32768), Mock())
     assert mock_cmove.call_args.kwargs["pdu"] == 32768
+
+
+# ── source_extractor: filesystem – include_archives ───────────────────────
+
+def test_filesystem_source_with_include_archives_counts_archive_files(tmp_path):
+    """With include_archives, .zip and .7z files are included in the reported count."""
+    (tmp_path / "scan.dcm").touch()
+    (tmp_path / "backup.zip").touch()
+    (tmp_path / "compressed.7z").touch()
+    (tmp_path / "readme.txt").touch()
+    logger = Mock()
+    config = {"sources": {"images": {
+        "type": "filesystem",
+        "directory": str(tmp_path),
+        "include_archives": True,
+    }}}
+
+    source_extractor(config, logger)
+
+    assert logger.info.call_args.args[0]["message"] == "found 3 files in images directory"
+
+
+def test_filesystem_source_without_include_archives_ignores_archive_files(tmp_path):
+    """Without include_archives, .zip and .7z files are excluded from the count."""
+    (tmp_path / "scan.dcm").touch()
+    (tmp_path / "backup.zip").touch()
+    logger = Mock()
+    config = {"sources": {"images": {
+        "type": "filesystem",
+        "directory": str(tmp_path),
+    }}}
+
+    source_extractor(config, logger)
+
+    assert logger.info.call_args.args[0]["message"] == "found 1 files in images directory"
+
+
+# ── source_extractor: filesystem – file_regex ─────────────────────────────
+
+def test_filesystem_source_with_file_regex_filters_matching_files(tmp_path):
+    """file_regex limits the reported file count to regex-matching filenames."""
+    (tmp_path / "CT_001.dcm").touch()
+    (tmp_path / "CT_002.dcm").touch()
+    (tmp_path / "MR_001.dcm").touch()
+    logger = Mock()
+    config = {"sources": {"images": {
+        "type": "filesystem",
+        "directory": str(tmp_path),
+        "file_regex": "CT_.*",
+    }}}
+
+    source_extractor(config, logger)
+
+    assert logger.info.call_args.args[0]["message"] == "found 2 files in images directory"
+
+
+def test_filesystem_source_with_file_regex_no_match_reports_zero(tmp_path):
+    """A file_regex that matches nothing yields a zero-file count."""
+    (tmp_path / "CT_001.dcm").touch()
+    logger = Mock()
+    config = {"sources": {"images": {
+        "type": "filesystem",
+        "directory": str(tmp_path),
+        "file_regex": "^MR_.*",
+    }}}
+
+    source_extractor(config, logger)
+
+    assert logger.info.call_args.args[0]["message"] == "found 0 files in images directory"

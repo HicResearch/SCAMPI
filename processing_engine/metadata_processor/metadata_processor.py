@@ -10,7 +10,6 @@ import datetime
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from itertools import repeat
 import re
-import py7zr
 import zipfile
 import io
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
@@ -50,19 +49,20 @@ def get_modality_table(modality,table_name):
         df = pd.DataFrame()
         columns = table['Columns']
         for column in columns:
-            df.insert(df.size,column['ColumnName'],[]) 
-            column_type = column.get('Type',None)
-            if column_type is not None:
-                if column_type["CSharpType"] == 'System.Int64':                
-                    df[column["ColumnName"]] = pd.to_numeric(df[column["ColumnName"]])
-                # if column_type["CSharpType"] == 'System.String':  
-                #     df[column["ColumnName"]] = pd.to_string(df[column["ColumnName"]])              
-                if column_type["CSharpType"] == 'System.Decimal':                
-                    df[column["ColumnName"]] =  df[column["ColumnName"]].astype(float)
-                if column_type["CSharpType"] == 'System.Double':                
-                    df[column["ColumnName"]] = df[column["ColumnName"]].astype(float)
-                if column_type["CSharpType"] == 'System.Date':     
-                    df[column["ColumnName"]] = pd.to_datetime(df[column["ColumnName"]])
+            df[column['ColumnName']] = None
+            #df.insert(df.size,column['ColumnName'],[]) 
+            # column_type = column.get('Type',None)
+            # if column_type is not None:
+            #     if column_type["CSharpType"] == 'System.Int64':                
+            #         df[column["ColumnName"]] = pd.to_numeric(df[column["ColumnName"]])
+            #     # if column_type["CSharpType"] == 'System.String':  
+            #     #     df[column["ColumnName"]] = pd.to_string(df[column["ColumnName"]])              
+            #     if column_type["CSharpType"] == 'System.Decimal':                
+            #         df[column["ColumnName"]] =  df[column["ColumnName"]].astype(float)
+            #     if column_type["CSharpType"] == 'System.Double':                
+            #         df[column["ColumnName"]] = df[column["ColumnName"]].astype(float)
+            #     if column_type["CSharpType"] == 'System.Date':     
+            #         df[column["ColumnName"]] = pd.to_datetime(df[column["ColumnName"]])
             ##TODO
             # is_pk = column.get('IsPrimaryKey',False)
             # if is_pk:
@@ -73,62 +73,62 @@ def get_modality_table(modality,table_name):
 
 def _datasetProcess(ds,root_directory,filename,logger):
     records = []
-    try:
-        modality = ds.Modality
-        modality_config = get_modality_config_for_file(modality)
-        if modality_config is None:
-            logger.error({
-                "message":f'modality {modality} not found',
-                "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
-                "modality":modality
-            })
-            return records
-
-        tables = modality_config["Tables"]
-        for table in tables:
-            modality_table = get_modality_table(modality,table['TableName']) #return a df with the correct columns
-            record = []
-            for column in table["Columns"]:
-                if '_' in column["ColumnName"]:
-                    dcm_path = column["ColumnName"].split('_')
-                    data_element = None
-                    try:
-                        for path_element in dcm_path:
-                            if  data_element is None:
-                                data_element = ds.data_element(path_element)
-                            else: 
-                                data_element = data_element.data_element(path_element)
-                            if data_element is None:
-                                break
-                    except Exception as e:
-                        logger.error({
-                            "message":e,
-                            "timestamp": datetime.datetime.now(datetime.UTC)
-                        })
-                    if data_element is None:
-                            record.append(None)
-                    else:
-                        record.append(data_element.value)
-                    continue
-                else:
-                    if column["ColumnName"] == "RelativeFileArchiveURI":
-                        record.append(root_directory +'/'+filename)
-                        continue
-                    try:
-                        data_element = ds.data_element(column["ColumnName"])
-                        if data_element is None:
-                            record.append(None)
-                        else:
-                            record.append(data_element.value)
-                    except Exception as e:
-                        record.append(None)
-            records.append((record,modality,table['TableName']))
-    except Exception as e:
-        print(e,traceback.format_exc())
+    # try:
+    modality = ds.Modality
+    modality_config = get_modality_config_for_file(modality)
+    if modality_config is None:
         logger.error({
-            "message":e,
-            "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
+            "message":f'modality {modality} not found',
+            "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
+            "modality":modality
         })
+        return records
+
+    tables = modality_config["Tables"]
+    for table in tables:
+        modality_table = get_modality_table(modality,table['TableName']) #return a df with the correct columns
+        record = []
+        for column in table["Columns"]:
+            if '_' in column["ColumnName"]:
+                dcm_path = column["ColumnName"].split('_')
+                data_element = None
+                try:
+                    for path_element in dcm_path:
+                        if  data_element is None:
+                            data_element = ds.data_element(path_element)
+                        else: 
+                            data_element = data_element.data_element(path_element)
+                        if data_element is None:
+                            break
+                except Exception as e:
+                    logger.error({
+                        "message":e,
+                        "timestamp": datetime.datetime.now(datetime.UTC)
+                    })
+                if data_element is None:
+                        record.append(None)
+                else:
+                    record.append(data_element.value)
+                continue
+            elif column["ColumnName"] == "RelativeFileArchiveURI":
+                    record.append(root_directory +'/'+filename)
+                    continue
+            try:
+                data_element = ds.data_element(column["ColumnName"])
+                if data_element is None:
+                    record.append(None)
+                else:
+                    record.append(data_element.value)
+            except Exception as e:
+                record.append(None)
+        records.append((record,modality,table['TableName']))
+    # except Exception as e:
+    #     print(e,traceback.format_exc())
+    #     logger.error({
+    #         "message":e,
+    #         "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
+    #     })
+    # print(records[2])
     return records
 
 def process(file,root_directory, logger):
@@ -138,9 +138,9 @@ def process(file,root_directory, logger):
         ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
         records = _datasetProcess(ds,root_directory,filename,logger)
     elif filename.endswith('7z'):
-        with py7zr.SevenZipFile(os.path.join(root_directory, filename), mode="r") as z:
-            files = z.readall()  # returns dict[str, BytesIO]
-            records = [_datasetProcess(pydicom.dcmread(f,name,root_directory+'/'+file+'!'),) for name,f in files.items()].flatten()
+        print('todo')
+        # with py7zr.SevenZipFile(os.path.join(root_directory, filename), mode="r") as z:
+        #     records = [_datasetProcess(pydicom.dcmread(f,name,root_directory+'/'+file+'!'),) for name,f in files.items()].flatten()
     elif filename.endswith('zip'):
             with zipfile.ZipFile(os.path.join(root_directory, filename), "r") as z:
                 names = z.namelist()
