@@ -9,7 +9,8 @@ def get_destination_location(row,destination):
 
 def write_file(config,logger,dataframe):
     start_time = datetime.datetime.now(datetime.UTC)
-    destination =  config['destination']['files']['directory']
+    destination = os.path.expanduser(config['destination']['files']['directory'])
+    os.makedirs(destination, exist_ok=True)
 
     written_archives = []
 
