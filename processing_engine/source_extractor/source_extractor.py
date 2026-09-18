@@ -6,7 +6,9 @@ import re
 from pydicom.dataset import Dataset
 from pynetdicom import AE, evt, AllStoragePresentationContexts
 from pynetdicom.sop_class import PatientRootQueryRetrieveInformationModelMove
-
+import zipfile
+import io
+import py7zr
 
 def _build_identifier(keys: list[str]) -> Dataset:
     """Parse ["Tag=value", ...] into a pydicom Dataset for C-MOVE."""
@@ -102,15 +104,25 @@ def source_extractor(config, logger):
                 })
                 continue
             included_extensions= ['dcm','DCM']
+            archive_extraction_dir = None
             if(source.get("include_archives",None )is not None):
                 included_extensions.append('7z')
                 included_extensions.append('zip')
+                archive_extraction_dir = pathlib.Path("./received_dicoms") / name
+                archive_extraction_dir.mkdir(parents=True, exist_ok=True)
             #TODO this should maybe do nested directories
             file_names = [fn for fn in os.listdir(source['directory'])
               if any(fn.endswith(ext) for ext in included_extensions)]
             file_regex = source.get("file_regex",None)
             if(file_regex is not None):
                 file_names = [fn for fn in file_names if re.match(f'{file_regex}',fn)]
+            if archive_extraction_dir is not None:
+                for file in file_names:
+                    if file.endswith('.7z'):
+                        with py7zr.SevenZipFile(os.path.join(source['directory'],file), mode='r') as archive:
+                            archive.extractall(path=os.path.join(archive_extraction_dir,file))#the count isn't right now
+                    if(file.endswith('.zip')):
+                        print('todo')
             logger.info({
                 "message": f"found {len(file_names)} files in {name} directory",
                 "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),

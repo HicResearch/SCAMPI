@@ -10,11 +10,23 @@ def get_destination_location(row,destination):
 def write_file(config,logger,dataframe):
     start_time = datetime.datetime.now(datetime.UTC)
     destination =  config['destination']['files']['directory']
+
+    written_archives = []
+
     for _, row in dataframe.iterrows():
-         if row.get("RelativeFileArchiveURI") is not None:
-            destination_file = get_destination_location(row,destination)
-            if destination_file is not None:
-                shutil.copyfile(row['RelativeFileArchiveURI'],destination_file)
+         RelativeFileArchiveURI = row.get("RelativeFileArchiveURI")
+         if RelativeFileArchiveURI is not None:
+            if '!' in RelativeFileArchiveURI: #archive
+                if(RelativeFileArchiveURI.split('!')[0] in written_archives):
+                    continue
+                else:
+                    destination_file = get_destination_location(row,destination).split('!')[0]
+                    if destination_file is not None:
+                        shutil.copyfile(RelativeFileArchiveURI.split('!')[0],destination_file)
+            else:
+                destination_file = get_destination_location(row,destination)
+                if destination_file is not None:
+                    shutil.copyfile(RelativeFileArchiveURI,destination_file)
     end_time = datetime.datetime.now(datetime.UTC)
     logger.info({
         "message":f"Wrote {len(dataframe.index)} files in {(end_time-start_time).total_seconds()} seconds",

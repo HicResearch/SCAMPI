@@ -4,15 +4,11 @@ import pydicom
 import numpy as np
 import pandas as pd
 from destination_writer.destination_writer import destination_writer
-import traceback
 import time
 import datetime
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 import re
-import zipfile
-import io
-import py7zr
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
 modality_templates_location="/templates"
 
@@ -74,7 +70,6 @@ def get_modality_table(modality,table_name):
 
 def _datasetProcess(ds,root_directory,filename,logger):
     records = []
-    # try:
     modality = ds.Modality
     modality_config = get_modality_config_for_file(modality)
     if modality_config is None:
@@ -123,13 +118,6 @@ def _datasetProcess(ds,root_directory,filename,logger):
             except Exception as e:
                 record.append(None)
         records.append((record,modality,table['TableName']))
-    # except Exception as e:
-    #     print(e,traceback.format_exc())
-    #     logger.error({
-    #         "message":e,
-    #         "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
-    #     })
-    # print(records[2])
     return records
 
 def process(file,root_directory, logger):
@@ -138,15 +126,12 @@ def process(file,root_directory, logger):
     if filename.endswith('.dcm'):
         ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
         records = _datasetProcess(ds,root_directory,filename,logger)
-    # elif filename.endswith('7z'):
-    #     with py7zr.SevenZipFile(os.path.join(root_directory, filename), mode="r") as z:
-    #         names = z.getnames();
-    #         data = z.read()
-    #         records = [_datasetProcess(pydicom.dcmread(f,name,root_directory+'/'+file+'!'),) for name,f in zip(names,data)].flatten()
-    # elif filename.endswith('zip'):
-    #         with zipfile.ZipFile(os.path.join(root_directory, filename), "r") as z:
-    #             names = z.namelist()
-    #             records = [_datasetProcess(pydicom.dcmread(z.open(f),name,root_directory+'/'+file+'!'),) for name in names].flatten()
+    elif filename.endswith('.7z'):
+        name ="friendly_name"
+        archive_extraction_dir = os.path.join("./received_dicoms",name,filename);
+        for f in os.listdir(archive_extraction_dir):
+            ds = pydicom.dcmread(archive_extraction_dir +'/'+f, stop_before_pixels=True)
+            records = _datasetProcess(ds,root_directory,filename +'!'+f,logger)
     return records
 
 
