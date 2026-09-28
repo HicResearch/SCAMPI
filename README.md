@@ -1,3 +1,7 @@
+![Tests](https://github.com/HicResearch/SCAMPI/actions/workflows/tests.yml/badge.svg)
+![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/JFriel/ef302fe4cee3248c4974297ba157016c/raw/scampi_coverage.json)
+![Docker Hub](https://img.shields.io/docker/v/taggenblu/scampi)
+
 # SCAMPI
 
 SCAMPI is a DICOM processing engine that extracts DICOM files from a source (local filesystem or PACS server), reads their metadata, and writes the metadata to a SQL Server database alongside copying the files to an output directory.
