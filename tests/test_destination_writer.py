@@ -2,7 +2,7 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 
-from destination_writer.destination_writer import destination_writer, write_file, write_metadata
+from destination_writer.destination_writer import destination_writer, write_file, write_metadata, get_destination_location
 
 
 def test_write_metadata_bad_connection():
@@ -186,3 +186,90 @@ def test_destination_writer_does_not_call_write_file_without_rfau_column(monkeyp
     destination_writer(config, logger, "SomeTable", df)
 
     mock_write_file.assert_not_called()
+
+
+# ── get_destination_location ──────────────────────────────────────────────────
+
+def test_get_destination_location_joins_destination_and_filename():
+    import os
+    row = pd.Series({"RelativeFileArchiveURI": "/some/path/to/file.dcm"})
+    result = get_destination_location(row, "/dest")
+    assert result == os.path.join("/dest", "file.dcm")
+
+
+# ── write_file: None RFAU row ─────────────────────────────────────────────────
+
+def test_write_file_skips_copy_when_rfau_value_is_none(monkeypatch):
+    mock_copyfile = Mock()
+    monkeypatch.setattr("destination_writer.destination_writer.shutil.copyfile", mock_copyfile)
+    monkeypatch.setattr("destination_writer.destination_writer.os.makedirs", Mock())
+
+    config = {"destination": {"files": {"directory": "/dest"}}}
+    logger = Mock()
+    df = pd.DataFrame({"RelativeFileArchiveURI": [None]})
+
+    write_file(config, logger, df)
+
+    mock_copyfile.assert_not_called()
+
+
+# ── write_file: archive URI with ! ────────────────────────────────────────────
+
+def test_write_file_copies_archive_source_when_rfau_contains_bang(monkeypatch):
+    mock_copyfile = Mock()
+    mock_get_dest = Mock(return_value="/dest/archive.7z")
+    monkeypatch.setattr("destination_writer.destination_writer.shutil.copyfile", mock_copyfile)
+    monkeypatch.setattr("destination_writer.destination_writer.get_destination_location", mock_get_dest)
+    monkeypatch.setattr("destination_writer.destination_writer.os.makedirs", Mock())
+
+    config = {"destination": {"files": {"directory": "/dest"}}}
+    logger = Mock()
+    df = pd.DataFrame({"RelativeFileArchiveURI": ["/src/archive.7z!file.dcm"]})
+
+    write_file(config, logger, df)
+
+    mock_copyfile.assert_called_once_with("/src/archive.7z", "/dest/archive.7z")
+
+
+# ── write_metadata: None RFAU value in row ────────────────────────────────────
+
+def test_write_metadata_skips_get_destination_when_rfau_value_is_none(monkeypatch):
+    mock_get_dest = Mock()
+    monkeypatch.setattr(
+        "destination_writer.destination_writer.get_destination_location", mock_get_dest
+    )
+    monkeypatch.setattr(pd.DataFrame, "to_sql", lambda *a, **kw: None)
+
+    config = {
+        "destination": {
+            "files": {"directory": "/dest"},
+            "metadata": {"dbType": "MSSQL", "connectionString": "fake", "index": "id"},
+        }
+    }
+    logger = Mock()
+    df = pd.DataFrame({"RelativeFileArchiveURI": [None]})
+
+    write_metadata(config, logger, "TestTable", df)
+
+    mock_get_dest.assert_not_called()
+
+
+def test_write_metadata_skips_rfau_update_when_destination_location_is_none(monkeypatch):
+    monkeypatch.setattr(
+        "destination_writer.destination_writer.get_destination_location",
+        Mock(return_value=None),
+    )
+    monkeypatch.setattr(pd.DataFrame, "to_sql", lambda *a, **kw: None)
+
+    config = {
+        "destination": {
+            "files": {"directory": "/dest"},
+            "metadata": {"dbType": "MSSQL", "connectionString": "fake", "index": "id"},
+        }
+    }
+    logger = Mock()
+    df = pd.DataFrame({"RelativeFileArchiveURI": ["/src/file.dcm"]})
+
+    write_metadata(config, logger, "TestTable", df)
+
+    logger.debug.assert_called()

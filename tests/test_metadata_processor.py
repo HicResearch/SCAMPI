@@ -409,3 +409,82 @@ def test_metadata_processor_include_archives_adds_archive_extensions(
 
     assert "scan.dcm" in processed_files
     assert "backup.zip" in processed_files
+
+
+# ─── get_modality_config: non-matching files in dir ──────────────────────────
+
+def test_get_modality_config_returns_none_when_files_present_but_none_match(tmp_path):
+    """Line 28->26: iterates files in templates dir that don't match the requested modality."""
+    make_template(tmp_path / "templates", "MR", [])  # MR.IT exists, but we request CT
+
+    result = metadata_processor.get_modality_config_for_file("CT")
+
+    assert result is None
+
+
+# ─── _datasetProcess: except on ds.data_element() ────────────────────────────
+
+def test_process_appends_none_when_data_element_raises(tmp_path):
+    """Lines 123-124: a valid DICOM keyword not present in the dataset causes ds[tag] to raise."""
+    make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
+        {"ColumnName": "PatientID"},
+        {"ColumnName": "StudyDate"},   # valid keyword, not set in write_dicom -> KeyError
+    ]}])
+    write_dicom(tmp_path / "image.dcm")  # sets Modality, PatientID, StudyInstanceUID only
+    logger = Mock()
+
+    records = metadata_processor.process("image.dcm", str(tmp_path), logger)
+
+    values, _, _ = records[0]
+    assert values[0] == "patient-123"
+    assert values[1] is None
+
+
+# ─── process: .7z path ───────────────────────────────────────────────────────
+
+def test_process_handles_7z_archive_file(tmp_path, monkeypatch):
+    """Lines 135-139: .7z files are read from ./received_dicoms/friendly_name/<archive>/."""
+    make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
+        {"ColumnName": "PatientID"},
+    ]}])
+    archive_dir = tmp_path / "received_dicoms" / "friendly_name" / "scan.7z"
+    archive_dir.mkdir(parents=True)
+    write_dicom(archive_dir / "image.dcm")
+    monkeypatch.chdir(tmp_path)
+    logger = Mock()
+
+    records = metadata_processor.process("scan.7z", str(tmp_path), logger)
+
+    assert len(records) == 1
+    _, _, table_name = records[0]
+    assert table_name == "StudyTable"
+
+
+# ─── metadata_processor: None result from process ────────────────────────────
+
+def test_metadata_processor_handles_none_result_from_process(
+    tmp_path, patched_executor, mock_destination_writer, monkeypatch
+):
+    """Line 180->179: process() returning None is skipped and does not increment file_count."""
+    monkeypatch.setattr(metadata_processor, "process", lambda *a: None)
+    write_dicom(tmp_path / "a.dcm")
+    logger = Mock()
+    config = {"sources": {"scans": {"type": "filesystem", "directory": str(tmp_path)}}}
+
+    metadata_processor.metadata_processor(config, logger)
+
+    assert logger.info.call_args.args[0]["file_count"] == 0
+
+
+def test_metadata_processor_handles_none_record_in_result(
+    tmp_path, patched_executor, mock_destination_writer, monkeypatch
+):
+    """Line 182->181: None entries within a process() result list are skipped."""
+    monkeypatch.setattr(metadata_processor, "process", lambda *a: [None])
+    write_dicom(tmp_path / "a.dcm")
+    logger = Mock()
+    config = {"sources": {"scans": {"type": "filesystem", "directory": str(tmp_path)}}}
+
+    metadata_processor.metadata_processor(config, logger)
+
+    assert logger.info.call_args.args[0]["file_count"] == 1
