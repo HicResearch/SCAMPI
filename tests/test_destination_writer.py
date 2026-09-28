@@ -94,6 +94,7 @@ def test_write_file_copies_files_to_destination(monkeypatch):
     mock_get_dest = Mock(return_value="/dest/file.dcm")
     monkeypatch.setattr("destination_writer.destination_writer.shutil.copyfile", mock_copyfile)
     monkeypatch.setattr("destination_writer.destination_writer.get_destination_location", mock_get_dest)
+    monkeypatch.setattr("destination_writer.destination_writer.os.makedirs", Mock())
 
     config = {"destination": {"files": {"directory": "/dest"}}}
     logger = Mock()
@@ -114,6 +115,7 @@ def test_write_file_skips_copy_when_destination_is_none(monkeypatch):
         "destination_writer.destination_writer.get_destination_location",
         Mock(return_value=None),
     )
+    monkeypatch.setattr("destination_writer.destination_writer.os.makedirs", Mock())
 
     config = {"destination": {"files": {"directory": "/dest"}}}
     logger = Mock()
