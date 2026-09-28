@@ -92,6 +92,15 @@ def _cmove(aet, aec, aem, ip, port, store_port, identifier, output_dir, pdu, log
     })
     return received
 
+def list_files_recursive(path):
+    entries = []
+    for entry in os.listdir(path):
+        full_path = os.path.join(path, entry)
+        if os.path.isdir(full_path):
+            entries.extend(list_files_recursive(full_path))
+        else:
+            entries.append(full_path)
+    return entries
 
 def source_extractor(config, logger):
     for name, source in config['sources'].items():
@@ -110,19 +119,23 @@ def source_extractor(config, logger):
                 included_extensions.append('zip')
                 archive_extraction_dir = pathlib.Path("./received_dicoms") / name
                 archive_extraction_dir.mkdir(parents=True, exist_ok=True)
-            #TODO this should maybe do nested directories
-            file_names = [fn for fn in os.listdir(source['directory'])
+            file_names = [fn for fn in list_files_recursive(source['directory'])
               if any(fn.endswith(ext) for ext in included_extensions)]
             file_regex = source.get("file_regex",None)
             if(file_regex is not None):
-                file_names = [fn for fn in file_names if re.match(f'{file_regex}',fn)]
+                file_names = [fn for fn in file_names if re.match(f'{file_regex}', os.path.basename(fn))]
             if archive_extraction_dir is not None:
                 for file in file_names:
                     if file.endswith('.7z'):
-                        with py7zr.SevenZipFile(os.path.join(source['directory'],file), mode='r') as archive:
-                            archive.extractall(path=os.path.join(archive_extraction_dir,file))#the count isn't right now
+                        with py7zr.SevenZipFile(file, mode='r') as archive:
+                            archive.extractall(path=os.path.join(archive_extraction_dir, os.path.basename(file)))
                     if(file.endswith('.zip')):
-                        print('todo')
+                        zip_extract_dir = os.path.join(archive_extraction_dir, os.path.basename(file))
+                        os.makedirs(zip_extract_dir, exist_ok=True)
+                        with zipfile.ZipFile(file, 'r') as zf:
+                            for member in zf.namelist():
+                                if member.lower().endswith('.dcm'):
+                                    zf.extract(member, zip_extract_dir)
             logger.info({
                 "message": f"found {len(file_names)} files in {name} directory",
                 "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),

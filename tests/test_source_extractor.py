@@ -3,6 +3,7 @@ import pytest
 import pydicom
 from pydicom.dataset import Dataset, FileMetaDataset
 import py7zr
+import zipfile
 
 from source_extractor.source_extractor import _build_identifier, _cmove, source_extractor
 
@@ -312,12 +313,13 @@ def test_pacs_source_passes_pdu(mock_cmove):
 
 # ── source_extractor: filesystem – include_archives ───────────────────────
 
-def test_filesystem_source_with_include_archives_counts_archive_files(tmp_path):
+def test_filesystem_source_with_include_archives_counts_archive_files(tmp_path, monkeypatch):
     """With include_archives, .zip and .7z files are included in the reported count."""
+    monkeypatch.chdir(tmp_path)
     (tmp_path / "scan.dcm").touch()
-    (tmp_path / "backup.zip").touch()
-    # (tmp_path / "compressed.7z").touch()
     (tmp_path / "readme.txt").touch()
+    with zipfile.ZipFile(tmp_path / "backup.zip", "w") as zf:
+        zf.writestr("placeholder.dcm", b"DICM")
     with py7zr.SevenZipFile( (tmp_path / "compressed.7z"), 'w') as z:
         z.write(tmp_path / "scan.dcm")
     logger = Mock()
@@ -379,3 +381,27 @@ def test_filesystem_source_with_file_regex_no_match_reports_zero(tmp_path):
     source_extractor(config, logger)
 
     assert logger.info.call_args.args[0]["message"] == "found 0 files in images directory"
+
+
+def test_filesystem_source_extracts_dcm_files_from_zip_into_named_subfolder(tmp_path, monkeypatch):
+    """Zip extraction places .dcm members into archive_extraction_dir/<zipname>/."""
+    monkeypatch.chdir(tmp_path)
+
+    # Build a zip containing one .dcm and one unrelated file
+    zip_path = tmp_path / "scans.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("patient1.dcm", b"DICM")
+        zf.writestr("notes.txt", b"ignore me")
+
+    logger = Mock()
+    config = {"sources": {"images": {
+        "type": "filesystem",
+        "directory": str(tmp_path),
+        "include_archives": True,
+    }}}
+
+    source_extractor(config, logger)
+
+    extract_dir = tmp_path / "received_dicoms" / "images" / "scans.zip"
+    assert (extract_dir / "patient1.dcm").exists()
+    assert not (extract_dir / "notes.txt").exists()

@@ -24,6 +24,7 @@ def write_file(config,logger,dataframe):
                     destination_file = get_destination_location(row,destination).split('!')[0]
                     if destination_file is not None:
                         shutil.copyfile(RelativeFileArchiveURI.split('!')[0],destination_file)
+                        written_archives.append(RelativeFileArchiveURI.split('!')[0])
             else:
                 destination_file = get_destination_location(row,destination)
                 if destination_file is not None:
