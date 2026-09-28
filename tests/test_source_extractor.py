@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch, call
 import pytest
 import pydicom
 from pydicom.dataset import Dataset, FileMetaDataset
+import py7zr
 
 from source_extractor.source_extractor import _build_identifier, _cmove, source_extractor
 
@@ -202,22 +203,25 @@ def test_cmove_handle_store_saves_file_to_output_dir(mock_ae, tmp_path):
 
 
 def test_cmove_received_count_reflects_stored_files(mock_ae, tmp_path):
-    _, ae_inst, _, _ = mock_ae
+    _, ae_inst, assoc, _ = mock_ae
     logger = Mock()
+
+    def fake_send_c_move(*args, **kwargs):
+        _, handler = ae_inst.start_server.call_args.kwargs["evt_handlers"][0]
+        for uid in ("1.1.1", "1.1.2", "1.1.3"):
+            ds = Dataset()
+            ds.SOPInstanceUID = uid
+            ev = Mock()
+            ev.dataset = ds
+            ev.file_meta = FileMetaDataset()
+            with patch.object(ds, "save_as"):
+                handler(ev)
+        return iter([(_status(0x0000), None)])
+
+    assoc.send_c_move.side_effect = fake_send_c_move
+
     _cmove_defaults(tmp_path, logger)
 
-    _, handler = ae_inst.start_server.call_args.kwargs["evt_handlers"][0]
-
-    for uid in ("1.1.1", "1.1.2", "1.1.3"):
-        ds = Dataset()
-        ds.SOPInstanceUID = uid
-        ev = Mock()
-        ev.dataset = ds
-        ev.file_meta = FileMetaDataset()
-        with patch.object(ds, "save_as"):
-            handler(ev)
-
-    print(logger.info.call_args.args[0])
     assert logger.info.call_args.args[0]["recieved"] == 3
 
 
@@ -312,8 +316,10 @@ def test_filesystem_source_with_include_archives_counts_archive_files(tmp_path):
     """With include_archives, .zip and .7z files are included in the reported count."""
     (tmp_path / "scan.dcm").touch()
     (tmp_path / "backup.zip").touch()
-    (tmp_path / "compressed.7z").touch()
+    # (tmp_path / "compressed.7z").touch()
     (tmp_path / "readme.txt").touch()
+    with py7zr.SevenZipFile( (tmp_path / "compressed.7z"), 'w') as z:
+        z.write(tmp_path / "scan.dcm")
     logger = Mock()
     config = {"sources": {"images": {
         "type": "filesystem",

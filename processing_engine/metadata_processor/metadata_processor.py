@@ -70,8 +70,13 @@ def get_modality_table(modality,table_name):
 
 def _datasetProcess(ds,root_directory,filename,logger):
     records = []
-    modality = ds.Modality
-    modality_config = get_modality_config_for_file(modality)
+    modality = None
+    modality_config = None
+    try:
+        modality = ds.Modality
+        modality_config = get_modality_config_for_file(modality)
+    except Exception:
+        pass
     if modality_config is None:
         logger.error({
             "message":f'modality {modality} not found',
