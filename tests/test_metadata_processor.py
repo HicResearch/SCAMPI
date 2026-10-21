@@ -433,7 +433,7 @@ def test_process_appends_none_when_data_element_raises(tmp_path):
     write_dicom(tmp_path / "image.dcm")  # sets Modality, PatientID, StudyInstanceUID only
     logger = Mock()
 
-    records = metadata_processor.process("image.dcm", str(tmp_path), logger)
+    records = metadata_processor.process("image.dcm", str(tmp_path),"friendly_name", logger)
 
     values, _, _ = records[0]
     assert values[0] == "patient-123"
@@ -453,7 +453,7 @@ def test_process_handles_7z_archive_file(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     logger = Mock()
 
-    records = metadata_processor.process("scan.7z", str(tmp_path), logger)
+    records = metadata_processor.process("scan.7z", str(tmp_path),"friendly_name", logger)
 
     assert len(records) == 1
     _, _, table_name = records[0]
