@@ -47,23 +47,6 @@ def get_modality_table(modality,table_name):
         columns = table['Columns']
         for column in columns:
             df[column['ColumnName']] = None
-            #df.insert(df.size,column['ColumnName'],[]) 
-            # column_type = column.get('Type',None)
-            # if column_type is not None:
-            #     if column_type["CSharpType"] == 'System.Int64':                
-            #         df[column["ColumnName"]] = pd.to_numeric(df[column["ColumnName"]])
-            #     # if column_type["CSharpType"] == 'System.String':  
-            #     #     df[column["ColumnName"]] = pd.to_string(df[column["ColumnName"]])              
-            #     if column_type["CSharpType"] == 'System.Decimal':                
-            #         df[column["ColumnName"]] =  df[column["ColumnName"]].astype(float)
-            #     if column_type["CSharpType"] == 'System.Double':                
-            #         df[column["ColumnName"]] = df[column["ColumnName"]].astype(float)
-            #     if column_type["CSharpType"] == 'System.Date':     
-            #         df[column["ColumnName"]] = pd.to_datetime(df[column["ColumnName"]])
-            ##TODO
-            # is_pk = column.get('IsPrimaryKey',False)
-            # if is_pk:
-            #     pks.append(column['ColumnName'])
         modality_tables[modality + '_'+table['TableName']]  = df# e.g. CT_StudyTable, CT_SeriesTable, CT_ImageTable
     return modality_tables.get(modality+'_'+table_name,None)
 
@@ -83,7 +66,9 @@ def _datasetProcess(ds,root_directory,filename,logger):
             "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
             "modality":modality
         })
-        return records
+        #return records
+        modality = 'OTHER'
+        modality_config = get_modality_config_for_file('OTHER')
 
     tables = modality_config["Tables"]
     for table in tables:
