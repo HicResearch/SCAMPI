@@ -2,7 +2,7 @@ import yaml
 import datetime
 import shutil
 import os
-
+import mysql
 
 def get_destination_location(row,destination):
     return os.path.join(destination,row['RelativeFileArchiveURI'].split('/')[-1])

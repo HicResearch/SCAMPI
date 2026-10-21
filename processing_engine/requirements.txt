@@ -6,6 +6,7 @@ greenlet==3.5.5
 inflate64==1.0.4
 iniconfig==2.3.0
 multivolumefile==0.2.3
+mysql-connector-python==26.7.0
 numpy==2.5.2
 packaging==26.3
 pandas==3.0.5

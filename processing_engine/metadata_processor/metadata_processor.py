@@ -119,7 +119,7 @@ def _datasetProcess(ds,root_directory,filename,logger):
                 if data_element is None:
                     record.append(None)
                 else:
-                    record.append(data_element.value)
+                    record.append(str(data_element.value))
             except Exception as e:
                 record.append(None)
         records.append((record,modality,table['TableName']))
