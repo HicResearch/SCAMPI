@@ -120,7 +120,7 @@ def source_extractor(config, logger):
                 archive_extraction_dir = pathlib.Path("./received_dicoms") / name
                 archive_extraction_dir.mkdir(parents=True, exist_ok=True)
             file_names = [fn for fn in list_files_recursive(source['directory'])
-              if any(fn.endswith(ext) for ext in included_extensions)]
+              if (any(fn.endswith(ext) for ext in included_extensions) or re.search(r".*\.[0-9]*$",fn))]
             file_regex = source.get("file_regex",None)
             if(file_regex is not None):
                 file_names = [fn for fn in file_names if re.match(f'{file_regex}', os.path.basename(fn))]

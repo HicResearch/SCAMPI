@@ -175,10 +175,10 @@ def metadata_processor(config, logger):
 
             if file_regex:
                 files = [fn for fn in os.listdir(root_directory)
-                if any(fn.endswith(ext) for ext in included_extensions) and re.match(f'{file_regex}',fn)]
+                if (any(fn.endswith(ext) for ext in included_extensions) or re.search(r".*\.[0-9]*$",fn)) and re.match(f'{file_regex}',fn)]
             else:   
                 files = [fn for fn in os.listdir(root_directory)
-                                if any(fn.endswith(ext) for ext in included_extensions)]
+                                if (any(fn.endswith(ext) for ext in included_extensions) or re.search(r".*\.[0-9]*$",fn))]
             for result in list(executor.map(process, files,repeat(root_directory),repeat(name), repeat(logger))):
                 if result is not None:
                     for r in result:
