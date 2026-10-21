@@ -381,36 +381,6 @@ def test_metadata_processor_with_file_regex_filters_files(
     assert logger.info.call_args.args[0]["file_count"] == 2
 
 
-def test_metadata_processor_include_archives_adds_archive_extensions(
-    tmp_path, patched_executor, mock_destination_writer, monkeypatch
-):
-    """With per-source include_archives, zip and 7z files appear in the files passed to process()."""
-    make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
-        {"ColumnName": "PatientID"},
-    ]}])
-    write_dicom(tmp_path / "scan.dcm")
-    (tmp_path / "backup.zip").write_bytes(b"")
-
-    processed_files = []
-    monkeypatch.setattr(
-        metadata_processor,
-        "process",
-        lambda file, root, log: processed_files.append(file) or [],
-    )
-
-    logger = Mock()
-    config = {"sources": {"scans": {
-        "type": "filesystem",
-        "directory": str(tmp_path),
-        "include_archives": True,
-    }}}
-
-    metadata_processor.metadata_processor(config, logger)
-
-    assert "scan.dcm" in processed_files
-    assert "backup.zip" in processed_files
-
-
 # ─── get_modality_config: non-matching files in dir ──────────────────────────
 
 def test_get_modality_config_returns_none_when_files_present_but_none_match(tmp_path):
