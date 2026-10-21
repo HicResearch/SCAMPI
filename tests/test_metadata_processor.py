@@ -179,7 +179,7 @@ def test_process_non_dcm_file_returns_none(tmp_path):
     (tmp_path / "report.txt").write_text("not a dicom")
     logger = Mock()
 
-    result = metadata_processor.process("report.txt", str(tmp_path), logger)
+    result = metadata_processor.process("report.txt", str(tmp_path), "",logger)
 
     assert len(result) is 0
 
@@ -193,7 +193,7 @@ def test_process_extracts_values_from_dicom_and_template(tmp_path):
     shutil.copy(TEST_IMAGES / "ct_chest_001.dcm", tmp_path / "image.dcm")
     logger = Mock()
 
-    records = metadata_processor.process("image.dcm", str(tmp_path), logger)
+    records = metadata_processor.process("image.dcm", str(tmp_path),"", logger)
 
     assert len(records) == 1
     values, modality, table_name = records[0]
@@ -205,7 +205,7 @@ def test_process_logs_error_when_no_template_for_modality(tmp_path):
     write_dicom(tmp_path / "image.dcm", modality="XA")
     logger = Mock()
 
-    records = metadata_processor.process("image.dcm", str(tmp_path), logger)
+    records = metadata_processor.process("image.dcm", str(tmp_path),"", logger)
 
     assert records == []
     logger.error.assert_called_once()
@@ -220,7 +220,7 @@ def test_process_appends_none_for_missing_data_element(tmp_path):
     write_dicom(tmp_path / "image.dcm")
     logger = Mock()
 
-    records = metadata_processor.process("image.dcm", str(tmp_path), logger)
+    records = metadata_processor.process("image.dcm", str(tmp_path),"", logger)
 
     values, _, _ = records[0]
     assert values[0] == "patient-123"
@@ -234,7 +234,7 @@ def test_process_appends_relative_file_archive_uri(tmp_path):
     shutil.copy(TEST_IMAGES / "ct_chest_001.dcm", tmp_path / "image.dcm")
     write_dicom(tmp_path / "image.dcm")
 
-    records = metadata_processor.process("image.dcm", str(tmp_path), Mock())
+    records = metadata_processor.process("image.dcm", str(tmp_path),"", Mock())
     print(records[0])
     values, _, _ = records[0]
     assert values[0] == str(tmp_path) + "/image.dcm"
@@ -246,7 +246,7 @@ def test_process_handles_nested_column_path_with_missing_first_element(tmp_path)
     ]}])
     write_dicom(tmp_path / "image.dcm")
 
-    records = metadata_processor.process("image.dcm", str(tmp_path), Mock())
+    records = metadata_processor.process("image.dcm", str(tmp_path),"", Mock())
 
     values, _, _ = records[0]
     assert values[0] is None
@@ -259,7 +259,7 @@ def test_process_logs_error_for_nested_column_exception(tmp_path):
     write_dicom(tmp_path / "image.dcm")
     logger = Mock()
 
-    metadata_processor.process("image.dcm", str(tmp_path), logger)
+    metadata_processor.process("image.dcm", str(tmp_path),"", logger)
 
     logger.error.assert_called()
 
@@ -277,7 +277,7 @@ def test_process_logs_error_and_returns_empty_on_outer_exception(tmp_path):
     ds.save_as(tmp_path / "no_modality.dcm")
     logger = Mock()
 
-    records = metadata_processor.process("no_modality.dcm", str(tmp_path), logger)
+    records = metadata_processor.process("no_modality.dcm", str(tmp_path),"", logger)
 
     assert records == []
     logger.error.assert_called()
