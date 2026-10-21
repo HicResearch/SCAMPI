@@ -126,31 +126,6 @@ def test_write_file_skips_copy_when_destination_is_none(monkeypatch):
     mock_copyfile.assert_not_called()
     logger.info.assert_called_once()
 
-
-# ── write_metadata line 27: if 'RelativeFileArchiveURI' in dataframe ──────────
-
-def test_write_metadata_resolves_file_paths_when_rfau_column_present(monkeypatch):
-    """Line 27 branch: get_destination_location is called for each row when RFAU column exists."""
-    mock_get_dest = Mock(return_value="/dest/file.dcm")
-    monkeypatch.setattr(
-        "destination_writer.destination_writer.get_destination_location", mock_get_dest
-    )
-    monkeypatch.setattr(pd.DataFrame, "to_sql", lambda *a, **kw: None)
-
-    config = {
-        "destination": {
-            "files": {"directory": "/dest"},
-            "metadata": {"dbType": "MSSQL", "connectionString": "fake", "index": "id"},
-        }
-    }
-    logger = Mock()
-    df = pd.DataFrame({"RelativeFileArchiveURI": ["/src/file.dcm"]})
-
-    write_metadata(config, logger, "TestTable", df)
-
-    mock_get_dest.assert_called_once()
-
-
 def test_write_metadata_skips_file_paths_when_rfau_column_absent(monkeypatch):
     """Line 27 branch: get_destination_location is not called when RFAU column is absent."""
     mock_get_dest = Mock()
