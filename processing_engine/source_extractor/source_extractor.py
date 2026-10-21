@@ -103,8 +103,15 @@ def list_files_recursive(path):
     return entries
 
 def source_extractor(config, logger):
+    logger.info({
+        "message": f"Starting Source Extraction",
+        "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
+    })
     for name, source in config['sources'].items():
-
+        logger.info({
+            "message": f"Starting Source Extraction for {name}",
+            "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
+        })
         if source['type'] == 'filesystem':
             if not os.path.isdir(source['directory']):
                 logger.warning({
@@ -128,7 +135,15 @@ def source_extractor(config, logger):
                 for file in file_names:
                     if file.endswith('.7z'):
                         with py7zr.SevenZipFile(file, mode='r') as archive:
+                            logger.info({
+                                        "message": f"Starting 7zip Extraction for {file}",
+                                        "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
+                                    })
                             archive.extractall(path=os.path.join(archive_extraction_dir, os.path.basename(file)))
+                            logger.info({
+                                "message": f"Completed 7zip Extraction for {file}",
+                                "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
+                            })
                     if(file.endswith('.zip')):
                         zip_extract_dir = os.path.join(archive_extraction_dir, os.path.basename(file))
                         os.makedirs(zip_extract_dir, exist_ok=True)
