@@ -69,6 +69,8 @@ def _datasetProcess(ds,root_directory,filename,logger):
         #return records
         modality = 'OTHER'
         modality_config = get_modality_config_for_file('OTHER')
+        if modality_config is None:
+            return records
 
     tables = modality_config["Tables"]
     for table in tables:
@@ -110,18 +112,34 @@ def _datasetProcess(ds,root_directory,filename,logger):
         records.append((record,modality,table['TableName']))
     return records
 
-def process(file,root_directory, logger):
+
+def get_file_names_from_directory_recursive(dir):
+    filenames=[]
+    for f in os.listdir(dir):
+        if os.path.isdir(os.path.join(dir,f)):
+            filenames = filenames + get_file_names_from_directory_recursive(os.path.join(dir,f))
+        else:
+            filenames.append(os.path.join(dir,f))
+    return filenames
+
+def process(file,root_directory,name, logger):
     filename = os.fsdecode(file)
     records = []
-    if filename.endswith('.dcm'):
-        ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
-        records = _datasetProcess(ds,root_directory,filename,logger)
-    elif filename.endswith('.7z'):
-        name ="friendly_name"
+        
+    if filename.endswith('.7z'):
         archive_extraction_dir = os.path.join("./received_dicoms",name,filename);
-        for f in os.listdir(archive_extraction_dir):
-            ds = pydicom.dcmread(archive_extraction_dir +'/'+f, stop_before_pixels=True)
-            records = _datasetProcess(ds,root_directory,filename +'!'+f,logger)
+        for f in get_file_names_from_directory_recursive(archive_extraction_dir):
+            try:
+                ds = pydicom.dcmread(f, stop_before_pixels=True)
+                records = _datasetProcess(ds,root_directory,filename+'!'+f.split(filename)[1][1:],logger)
+            except Exception as e:
+                continue
+    else:
+        try:
+            ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
+            records = _datasetProcess(ds,root_directory,filename,logger)
+        except:
+            pass
     return records
 
 
@@ -161,7 +179,7 @@ def metadata_processor(config, logger):
             else:   
                 files = [fn for fn in os.listdir(root_directory)
                                 if any(fn.endswith(ext) for ext in included_extensions)]
-            for result in list(executor.map(process, files,repeat(root_directory), repeat(logger))):
+            for result in list(executor.map(process, files,repeat(root_directory),repeat(name), repeat(logger))):
                 if result is not None:
                     for r in result:
                         if r is not None:
