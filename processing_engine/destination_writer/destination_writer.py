@@ -5,6 +5,8 @@ import os
 import mysql
 
 def get_destination_location(row,destination):
+    if('!' in row['RelativeFileArchiveURI']):
+        return os.path.join(destination,row['RelativeFileArchiveURI'].split('!')[0].split('/')[-1])
     return os.path.join(destination,row['RelativeFileArchiveURI'].split('/')[-1])
 
 def write_file(config,logger,dataframe):
