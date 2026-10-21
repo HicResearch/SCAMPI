@@ -131,7 +131,7 @@ def process(file,root_directory,name, logger):
         for f in get_file_names_from_directory_recursive(archive_extraction_dir):
             try:
                 ds = pydicom.dcmread(f, stop_before_pixels=True)
-                records = _datasetProcess(ds,root_directory,filename+'!'+f.split(filename)[1][1:],logger)
+                records = records + _datasetProcess(ds,root_directory,filename+'!'+f.split(filename)[1][1:],logger)
             except Exception as e:
                 continue
     else:
