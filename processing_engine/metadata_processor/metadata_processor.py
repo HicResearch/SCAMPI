@@ -106,11 +106,23 @@ def _datasetProcess(ds,root_directory,filename,logger):
                 if data_element is None:
                     record.append(None)
                 else:
-                    record.append(str(data_element.value))
+                    record.append(guess_type_based_on_vr(data_element.value,data_element.VR))
             except Exception as e:
                 record.append(None)
         records.append((record,modality,table['TableName']))
     return records
+
+
+def guess_type_based_on_vr(value,type):
+    match type:
+        case 'DA':
+            return pd.to_datetime(value)
+        case 'FL':
+            return float(value)
+        case'FD':
+            return float(value)
+        case _:
+            return str(value)
 
 
 def get_file_names_from_directory_recursive(dir):

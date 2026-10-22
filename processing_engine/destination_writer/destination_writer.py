@@ -3,7 +3,7 @@ import datetime
 import shutil
 import os
 import mysql
-
+import sqlalchemy
 def get_destination_location(row,destination):
     if('!' in row['RelativeFileArchiveURI']):
         return os.path.join(destination,row['RelativeFileArchiveURI'].split('!')[0].split('/')[-1])
@@ -56,7 +56,13 @@ def write_metadata(config,logger, table_name, dataframe):
             "timestamp": datetime.datetime.now(datetime.UTC).timestamp() 
         })
         try:
-            df_to_write.to_sql(table_name,config['destination']['metadata']['connectionString'],if_exists="append",index=False,index_label=index)
+            df_to_write.to_sql(table_name,config['destination']['metadata']['connectionString'],if_exists="append",index=False,index_label=index,
+            dtype= { 'datefld': sqlalchemy.DateTime(), 
+                    'intfld':  sqlalchemy.types.INTEGER(),
+                    'strfld': sqlalchemy.types.NVARCHAR(length=255),
+                    'floatfld': sqlalchemy.types.Float(precision=3, asdecimal=True),
+                    'booleanfld': sqlalchemy.types.Boolean}                   
+            )
             logger.debug({
                 "message": f"Finished writing {df_to_write.shape[0]} records to {table_name}",
                 "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
