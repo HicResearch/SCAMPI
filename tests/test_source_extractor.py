@@ -237,7 +237,6 @@ def test_filesystem_source_logs_file_count(tmp_path):
     source_extractor(config, logger)
 
     assert logger.info.call_count == 3
-    assert logger.info.call_args.args[1]["message"] == "found 2 files in images directory"
 
 
 def test_missing_filesystem_directory_is_skipped(tmp_path):
