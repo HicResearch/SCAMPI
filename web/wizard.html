@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SCAMPI — Config Wizard</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦐</text></svg>">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh}
+
+/* ── Header ── */
+header{background:#0f172a;color:#fff;padding:1rem 2rem;display:flex;align-items:center;gap:.75rem}
+header .logo{font-size:1.3rem;font-weight:800;letter-spacing:.08em}
+header .sub{color:#64748b;font-size:.85rem}
+header nav{margin-left:auto;display:flex;gap:.5rem}
+header nav a{color:#94a3b8;font-size:.85rem;text-decoration:none;padding:.35rem .75rem;border-radius:5px;transition:all .15s}
+header nav a:hover{color:#fff;background:rgba(255,255,255,.08)}
+header nav a.active{color:#fff;background:rgba(255,255,255,.12)}
+
+/* ── Layout ── */
+main{max-width:820px;margin:2rem auto;padding:0 1rem 4rem}
+
+/* ── Progress ── */
+.steps{display:flex;background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.1);margin-bottom:1.5rem;overflow:hidden}
+.step-tab{flex:1;padding:.7rem .25rem .6rem;text-align:center;font-size:.78rem;color:#94a3b8;border-bottom:3px solid transparent;transition:all .2s;cursor:default;user-select:none}
+.step-tab .num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:#e2e8f0;color:#64748b;align-items:center;justify-content:center;font-weight:700;font-size:.7rem;margin-bottom:.25rem}
+.step-tab.done{color:#22c55e}.step-tab.done .num{background:#22c55e;color:#fff}
+.step-tab.active{color:#2563eb;border-bottom-color:#2563eb}.step-tab.active .num{background:#2563eb;color:#fff}
+
+/* ── Card ── */
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.1);overflow:hidden}
+.card-header{padding:1.5rem 2rem 1rem;border-bottom:1px solid #f1f5f9}
+.card-header h2{font-size:1.15rem;font-weight:600}
+.card-header p{color:#64748b;margin-top:.3rem;font-size:.88rem}
+.card-body{padding:1.5rem 2rem}
+.card-footer{padding:1rem 2rem;border-top:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center}
+
+/* ── Form ── */
+.field{margin-bottom:1rem}
+.field label,.field>span.lbl{display:block;font-size:.83rem;font-weight:500;color:#475569;margin-bottom:.3rem}
+.field input[type=text],.field input[type=number],.field select,.field textarea{
+  width:100%;padding:.45rem .7rem;border:1px solid #cbd5e1;border-radius:6px;font-size:.88rem;color:#1e293b;background:#fff;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.1)}
+.field .hint{font-size:.75rem;color:#94a3b8;margin-top:.25rem}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+
+/* ── Toggle ── */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:.65rem 0}
+.toggle-row .trl{}.toggle-row .trl label{font-weight:500;color:#1e293b;font-size:.9rem}
+.toggle-row .sub{font-size:.78rem;color:#64748b;margin-top:.1rem}
+.toggle{position:relative;width:42px;height:22px;flex-shrink:0;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0;position:absolute}
+.toggle-track{position:absolute;inset:0;background:#cbd5e1;border-radius:11px;transition:background .2s;cursor:pointer}
+.toggle input:checked+.toggle-track{background:#2563eb}
+.toggle-track::after{content:'';position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;left:3px;top:3px;transition:left .2s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.toggle input:checked+.toggle-track::after{left:23px}
+
+/* ── Section label ── */
+.sec{font-size:.73rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:#94a3b8;margin:1.25rem 0 .6rem}
+hr{border:none;border-top:1px solid #f1f5f9;margin:1.25rem 0}
+
+/* ── Source cards ── */
+.source-card{border:1px solid #e2e8f0;border-radius:8px;margin-bottom:1rem;overflow:hidden}
+.source-card-hd{background:#f8fafc;padding:.65rem 1rem;display:flex;align-items:center;gap:.6rem}
+.src-name-input{flex:1;border:none;background:transparent;font-weight:600;font-size:.88rem;color:#1e293b;outline:none;min-width:0}
+.src-name-input::placeholder{color:#94a3b8}
+.badge{font-size:.68rem;padding:.2rem .55rem;border-radius:999px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.badge-fs{background:#dbeafe;color:#1d4ed8}.badge-pacs{background:#fce7f3;color:#be185d}
+.source-card-bd{padding:1rem}
+.type-toggle{display:flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;margin-bottom:1rem}
+.type-btn{flex:1;padding:.45rem;text-align:center;cursor:pointer;font-size:.83rem;font-weight:500;color:#64748b;background:#fff;border:none;transition:all .15s}
+.type-btn.active{background:#2563eb;color:#fff}
+
+/* ── Tag overrides ── */
+.tag-row{display:flex;gap:.5rem;align-items:flex-start;padding:.65rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:.45rem}
+.tag-row input,.tag-row select{padding:.38rem .55rem;border:1px solid #cbd5e1;border-radius:5px;font-size:.83rem;background:#fff;width:100%}
+.tag-row input:focus,.tag-row select:focus{outline:none;border-color:#3b82f6}
+.tag-f{flex:3}.act-f{flex:2}.val-f{flex:2}
+.del-btn{background:none;border:none;color:#94a3b8;cursor:pointer;padding:.35rem;border-radius:4px;font-size:1rem;line-height:1;transition:color .15s;flex-shrink:0;margin-top:1px}
+.del-btn:hover{color:#ef4444}
+
+/* ── Key list ── */
+.key-row{display:flex;gap:.5rem;margin-bottom:.4rem}
+.key-row input{flex:1;padding:.38rem .55rem;border:1px solid #cbd5e1;border-radius:5px;font-size:.83rem}
+.key-del{padding:.38rem .55rem;background:none;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;color:#94a3b8;font-size:.8rem;transition:all .15s}
+.key-del:hover{color:#ef4444;border-color:#fca5a5}
+
+/* ── Buttons ── */
+.btn{padding:.55rem 1.1rem;border-radius:6px;border:none;font-size:.88rem;font-weight:500;cursor:pointer;transition:all .15s;line-height:1.2}
+.btn-primary{background:#2563eb;color:#fff}.btn-primary:hover{background:#1d4ed8}
+.btn-secondary{background:#fff;color:#475569;border:1px solid #e2e8f0}.btn-secondary:hover{background:#f8fafc}
+.btn-ghost{background:none;border:1px dashed #cbd5e1;color:#64748b;width:100%;padding:.55rem}.btn-ghost:hover{border-color:#2563eb;color:#2563eb;background:#eff6ff}
+.btn-sm{padding:.35rem .7rem;font-size:.8rem}
+.btn-danger{background:#fef2f2;color:#ef4444;border:1px solid #fecaca}.btn-danger:hover{background:#fee2e2}
+
+/* ── YAML preview ── */
+.yaml-wrap{position:relative;background:#0f172a;border-radius:8px;overflow:hidden}
+.yaml-wrap pre{padding:1.5rem;overflow:auto;font-family:'Consolas','Monaco',monospace;font-size:.8rem;line-height:1.65;color:#e2e8f0;max-height:500px;white-space:pre}
+.yaml-copy-btn{position:absolute;top:.65rem;right:.65rem;padding:.3rem .7rem;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:5px;color:#cbd5e1;font-size:.75rem;cursor:pointer;transition:background .15s}
+.yaml-copy-btn:hover{background:rgba(255,255,255,.2)}
+
+/* ── Alerts ── */
+.alert{padding:.7rem 1rem;border-radius:6px;font-size:.83rem;margin-bottom:1rem}
+.alert-info{background:#eff6ff;color:#1d4ed8;border-left:3px solid #3b82f6}
+.alert-success{background:#f0fdf4;color:#166534;border-left:3px solid #22c55e}
+code{font-family:monospace;font-size:.85em;background:#f1f5f9;padding:.1em .3em;border-radius:3px}
+
+/* ── Misc ── */
+.hidden{display:none!important}
+.indent{padding-left:1rem;border-left:3px solid #e2e8f0;margin-top:.5rem}
+.empty-msg{color:#94a3b8;text-align:center;padding:1.5rem;font-size:.85rem}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SCAMPI</div>
+  <div class="sub">Configuration Wizard</div>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="wizard.html" class="active">Config Wizard</a>
+  </nav>
+</header>
+
+<main>
+  <div class="steps" id="steps-bar"></div>
+
+  <div class="card">
+
+    <!-- ── Step 1: Sources ── -->
+    <div id="panel-1">
+      <div class="card-header">
+        <h2>Data Sources</h2>
+        <p>Configure where SCAMPI retrieves DICOM files from. You can add multiple sources of different types.</p>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Global file regex <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <input type="text" id="global-file-regex" placeholder=".*">
+          <div class="hint">Filter filenames during metadata processing across all sources. Per-source filters can also be set below.</div>
+        </div>
+        <div id="sources-container"></div>
+        <button class="btn btn-ghost" onclick="addSource()">+ Add Source</button>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Anonymisation ── -->
+    <div id="panel-2" class="hidden">
+      <div class="card-header">
+        <h2>Anonymisation</h2>
+        <p>Remove or modify DICOM tags containing patient-identifiable information before processing.</p>
+      </div>
+      <div class="card-body">
+        <div class="toggle-row">
+          <div class="trl">
+            <label>Enable anonymisation</label>
+            <div class="sub">Modify DICOM tags on all incoming files before metadata extraction</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="anon-enabled" onchange="onAnonToggle()">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div id="anon-details" class="hidden">
+          <hr>
+          <div class="field">
+            <label>Base profile</label>
+            <select id="anon-profile">
+              <option value="basic">basic — removes standard HIPAA direct identifiers (name, DOB, address, institution…)</option>
+              <option value="none">none — apply only the custom overrides listed below</option>
+            </select>
+            <div class="hint">UIDs are always preserved so studies remain linkable across systems.</div>
+          </div>
+
+          <div class="sec">Per-tag overrides <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:.8rem">(optional — applied on top of the profile)</span></div>
+          <div style="display:grid;grid-template-columns:3fr 2fr 2fr 1.5rem;gap:.5rem;padding:.4rem .65rem;font-size:.73rem;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em">
+            <span>Tag name</span><span>Action</span><span>Value / days</span><span></span>
+          </div>
+          <div id="tags-container"></div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:.5rem;width:auto;padding:.4rem 1rem" onclick="addTag()">+ Add tag override</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 3: OCR ── -->
+    <div id="panel-3" class="hidden">
+      <div class="card-header">
+        <h2>OCR Check</h2>
+        <p>Scan DICOM pixel data for burned-in text that may contain patient-identifiable information.</p>
+      </div>
+      <div class="card-body">
+        <div class="toggle-row">
+          <div class="trl">
+            <label>Enable OCR check</label>
+            <div class="sub">Requires Tesseract OCR to be installed (included in the Docker image by default)</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="ocr-enabled" onchange="onOcrToggle()">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div id="ocr-details" class="hidden">
+          <hr>
+          <div class="field" style="max-width:220px">
+            <label>Max frames to check per file</label>
+            <input type="number" id="ocr-max-frames" value="1" min="1" max="9999">
+            <div class="hint">For multi-frame images (e.g. cine). Higher values are slower.</div>
+          </div>
+          <div class="alert alert-info" style="margin-top:1rem">
+            Results are written to the <code>BurnedInTextDetected</code> column in the output database.
+            Files with detected text are also logged as warnings.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 4: Destination ── -->
+    <div id="panel-4" class="hidden">
+      <div class="card-header">
+        <h2>Destination</h2>
+        <p>Configure where processed DICOM files and extracted metadata are written.</p>
+      </div>
+      <div class="card-body">
+        <div class="sec">File storage</div>
+        <div class="field">
+          <label>Output directory <span style="color:#ef4444">*</span></label>
+          <input type="text" id="dest-dir" placeholder="/output" value="/output">
+          <div class="hint">Container path where DICOM files (or .7z archives) will be written.</div>
+        </div>
+
+        <div class="toggle-row">
+          <div class="trl">
+            <label>Archive into .7z files</label>
+            <div class="sub">Group files into daily or hourly archives with maximum LZMA2 compression</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="archive-enabled" onchange="onArchiveToggle()">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div id="archive-details" class="hidden indent">
+          <div class="field" style="max-width:260px;margin-top:.75rem">
+            <label>Group by</label>
+            <select id="archive-group-by">
+              <option value="day">Day — one archive per day (YYYY-MM-DD.7z)</option>
+              <option value="hour">Hour — one archive per hour (YYYY-MM-DD_HH.7z)</option>
+            </select>
+          </div>
+        </div>
+
+        <hr>
+        <div class="sec">Database (metadata)</div>
+
+        <div class="field">
+          <label>Database type</label>
+          <select id="db-type">
+            <option value="MSSQL">MSSQL (SQL Server via pyodbc)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Connection string <span style="color:#ef4444">*</span></label>
+          <input type="text" id="db-conn"
+            placeholder="mssql+pyodbc://user:pass@host,1433/DB?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes">
+          <div class="hint">SQLAlchemy connection string. From inside Docker, use <code>host.docker.internal</code> to reach a host-side SQL Server.</div>
+        </div>
+
+        <div class="field">
+          <label>Primary key / index column <span style="color:#ef4444">*</span></label>
+          <input type="text" id="db-index" placeholder="SOPInstanceUID" value="SOPInstanceUID">
+          <div class="hint">Column used as the primary key when upserting rows into the database.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 5: Review ── -->
+    <div id="panel-5" class="hidden">
+      <div class="card-header">
+        <h2>Review &amp; Download</h2>
+        <p>Your <code>config.yml</code> is ready. Download it and mount it into the container at <code>/config.yml</code>.</p>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-success" style="margin-bottom:1.25rem">
+          Mount this file with <code>-v /path/to/config.yml:/config.yml:ro</code> (or in <code>docker-compose.yml</code> under <code>volumes</code>).
+        </div>
+        <div class="yaml-wrap">
+          <button class="yaml-copy-btn" id="copy-btn" onclick="copyYAML()">Copy</button>
+          <pre id="yaml-output"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Navigation ── -->
+    <div class="card-footer">
+      <button class="btn btn-secondary" id="btn-back" onclick="navigate(-1)">← Back</button>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <span id="step-label" style="font-size:.82rem;color:#94a3b8"></span>
+        <button class="btn btn-primary" id="btn-next" onclick="navigate(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Hidden download anchor -->
+<a id="dl-link" style="display:none"></a>
+
+<script>
+'use strict';
+
+// ── State ────────────────────────────────────────────────────────────────
+let step = 1;
+const STEPS = 5;
+let sources = [];
+let tags = [];
+let srcSeq = 0, tagSeq = 0;
+
+const COMMON_TAGS = [
+  'PatientName','PatientID','PatientBirthDate','PatientSex','PatientAge','PatientAddress',
+  'PatientWeight','PatientSize','InstitutionName','InstitutionAddress',
+  'ReferringPhysicianName','PerformingPhysicianName','OperatorsName',
+  'RequestingPhysician','StudyDescription','SeriesDescription',
+  'StationName','ImageComments','AccessionNumber','OtherPatientIDs',
+];
+
+// ── Navigation ───────────────────────────────────────────────────────────
+function navigate(dir) {
+  if (dir === 1 && !validateStep(step)) return;
+  step = Math.max(1, Math.min(STEPS, step + dir));
+  renderStep();
+  if (step === STEPS) renderYAML();
+}
+
+function renderStep() {
+  for (let i = 1; i <= STEPS; i++)
+    document.getElementById('panel-' + i).classList.toggle('hidden', i !== step);
+
+  document.getElementById('btn-back').style.visibility = step === 1 ? 'hidden' : 'visible';
+
+  const nextBtn = document.getElementById('btn-next');
+  if (step === STEPS) {
+    nextBtn.textContent = '⬇ Download config.yml';
+    nextBtn.onclick = downloadYAML;
+  } else {
+    nextBtn.textContent = 'Next →';
+    nextBtn.onclick = () => navigate(1);
+  }
+
+  document.getElementById('step-label').textContent = 'Step ' + step + ' of ' + STEPS;
+
+  const labels = ['Sources','Anonymisation','OCR','Destination','Review'];
+  document.getElementById('steps-bar').innerHTML = labels.map((l, i) => {
+    const n = i + 1;
+    const cls = n < step ? 'done' : n === step ? 'active' : '';
+    const inner = n < step ? '✓' : n;
+    return `<div class="step-tab ${cls}"><div class="num">${inner}</div><div>${l}</div></div>`;
+  }).join('');
+}
+
+// ── Validation ───────────────────────────────────────────────────────────
+function validateStep(s) {
+  if (s === 1) {
+    if (!sources.length) { alert('Add at least one source.'); return false; }
+    for (const src of sources) {
+      if (!src.name.trim()) { alert('All sources must have a name.'); return false; }
+      if (src.type === 'filesystem' && !src.directory.trim()) {
+        alert('Source "' + src.name + '": directory is required.'); return false;
+      }
+      if (src.type === 'pacs') {
+        for (const f of ['aet','aec','aem','ip','port']) {
+          if (!src[f] && src[f] !== 0) {
+            alert('Source "' + src.name + '": ' + f + ' is required.'); return false;
+          }
+        }
+      }
+    }
+  }
+  if (s === 4) {
+    if (!v('dest-dir')) { alert('Output directory is required.'); return false; }
+    if (!v('db-conn'))  { alert('Database connection string is required.'); return false; }
+    if (!v('db-index')) { alert('Index column is required.'); return false; }
+  }
+  return true;
+}
+
+function v(id) { return (document.getElementById(id).value || '').trim(); }
+
+// ── Sources ──────────────────────────────────────────────────────────────
+function addSource() {
+  srcSeq++;
+  sources.push({
+    id: srcSeq, name: 'source_' + srcSeq, type: 'filesystem',
+    directory: '', fileRegex: '', includeArchives: false,
+    aet: 'SCAMPI', aec: '', aem: 'SCAMPI', ip: '', port: 4242, storePort: 11113,
+    pdu: '', keys: ['QueryRetrieveLevel=STUDY'],
+  });
+  renderSources();
+}
+
+function removeSource(id) {
+  sources = sources.filter(s => s.id !== id);
+  renderSources();
+}
+
+function setSrcField(id, field, val) {
+  const s = sources.find(s => s.id === id);
+  if (s) s[field] = val;
+}
+
+function setSrcType(id, type) {
+  const s = sources.find(s => s.id === id);
+  if (s && s.type !== type) { s.type = type; renderSources(); }
+}
+
+function addKey(id) {
+  const s = sources.find(s => s.id === id);
+  if (s) { s.keys.push(''); renderSources(); }
+}
+
+function removeKey(id, i) {
+  const s = sources.find(s => s.id === id);
+  if (s) { s.keys.splice(i, 1); renderSources(); }
+}
+
+function setKey(id, i, val) {
+  const s = sources.find(s => s.id === id);
+  if (s) s.keys[i] = val;
+}
+
+function renderSources() {
+  const c = document.getElementById('sources-container');
+  if (!sources.length) {
+    c.innerHTML = '<p class="empty-msg">No sources yet. Click "+ Add Source" below.</p>';
+    return;
+  }
+  c.innerHTML = sources.map(src => {
+    const fsA = src.type === 'filesystem' ? 'active' : '';
+    const paA = src.type === 'pacs' ? 'active' : '';
+    const badge = src.type === 'filesystem'
+      ? '<span class="badge badge-fs">Filesystem</span>'
+      : '<span class="badge badge-pacs">PACS</span>';
+
+    const keysHtml = src.keys.map((k, i) => `
+      <div class="key-row">
+        <input type="text" value="${e(k)}" placeholder="QueryRetrieveLevel=STUDY"
+          oninput="setKey(${src.id},${i},this.value)">
+        <button class="key-del" onclick="removeKey(${src.id},${i})">✕</button>
+      </div>`).join('');
+
+    return `
+<div class="source-card" id="sc-${src.id}">
+  <div class="source-card-hd">
+    ${badge}
+    <input class="src-name-input" type="text" value="${e(src.name)}" placeholder="source name"
+      oninput="setSrcField(${src.id},'name',this.value)">
+    <button class="btn btn-danger btn-sm" onclick="removeSource(${src.id})">Remove</button>
+  </div>
+  <div class="source-card-bd">
+    <div class="type-toggle">
+      <button class="type-btn ${fsA}" onclick="setSrcType(${src.id},'filesystem')">📁 Filesystem</button>
+      <button class="type-btn ${paA}" onclick="setSrcType(${src.id},'pacs')">🏥 PACS (C-MOVE)</button>
+    </div>
+
+    <div class="${src.type !== 'filesystem' ? 'hidden' : ''}">
+      <div class="field">
+        <label>Directory <span style="color:#ef4444">*</span></label>
+        <input type="text" value="${e(src.directory)}" placeholder="/dicom_images"
+          oninput="setSrcField(${src.id},'directory',this.value)">
+        <div class="hint">Container path to scan for DICOM files.</div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>File regex <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
+          <input type="text" value="${e(src.fileRegex)}" placeholder=".*"
+            oninput="setSrcField(${src.id},'fileRegex',this.value)">
+        </div>
+        <div class="field" style="display:flex;align-items:center;gap:.5rem;padding-top:1.55rem">
+          <input type="checkbox" id="ia-${src.id}" ${src.includeArchives?'checked':''}
+            onchange="setSrcField(${src.id},'includeArchives',this.checked)"
+            style="width:auto;cursor:pointer">
+          <label for="ia-${src.id}" style="margin:0;cursor:pointer;font-size:.85rem">Include .7z / .zip archives</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="${src.type !== 'pacs' ? 'hidden' : ''}">
+      <div class="row3">
+        <div class="field">
+          <label>AE Title (this service)</label>
+          <input type="text" value="${e(src.aet)}" placeholder="SCAMPI"
+            oninput="setSrcField(${src.id},'aet',this.value)">
+        </div>
+        <div class="field">
+          <label>AE Title (PACS) <span style="color:#ef4444">*</span></label>
+          <input type="text" value="${e(src.aec)}" placeholder="ORTHANC"
+            oninput="setSrcField(${src.id},'aec',this.value)">
+        </div>
+        <div class="field">
+          <label>C-MOVE destination AET</label>
+          <input type="text" value="${e(src.aem)}" placeholder="SCAMPI"
+            oninput="setSrcField(${src.id},'aem',this.value)">
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>PACS IP / hostname <span style="color:#ef4444">*</span></label>
+          <input type="text" value="${e(src.ip)}" placeholder="192.168.1.1"
+            oninput="setSrcField(${src.id},'ip',this.value)">
+        </div>
+        <div class="field">
+          <label>PACS DICOM port <span style="color:#ef4444">*</span></label>
+          <input type="number" value="${src.port}"
+            oninput="setSrcField(${src.id},'port',+this.value)">
+        </div>
+        <div class="field">
+          <label>C-STORE listen port</label>
+          <input type="number" value="${src.storePort}"
+            oninput="setSrcField(${src.id},'storePort',+this.value)">
+        </div>
+      </div>
+      <div class="field" style="max-width:260px">
+        <label>Maximum PDU size <span style="color:#94a3b8;font-weight:400">(optional, bytes)</span></label>
+        <input type="number" min="1" value="${e(src.pdu)}"
+          oninput="setSrcField(${src.id},'pdu',+this.value)">
+        <div class="hint">Leave blank to use the pynetdicom default.</div>
+      </div>
+      <div class="field">
+        <label>C-MOVE query keys</label>
+        <div>${keysHtml}</div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:.4rem;width:auto;padding:.38rem .8rem"
+          onclick="addKey(${src.id})">+ Add key</button>
+        <div class="hint">Key=value pairs sent with the C-FIND/C-MOVE request.</div>
+      </div>
+    </div>
+  </div>
+</div>`;
+  }).join('');
+}
+
+// ── Anonymisation ─────────────────────────────────────────────────────────
+function onAnonToggle() {
+  document.getElementById('anon-details')
+    .classList.toggle('hidden', !document.getElementById('anon-enabled').checked);
+}
+
+function addTag() {
+  tagSeq++;
+  tags.push({ id: tagSeq, tag: '', action: 'remove', value: '', days: 90 });
+  renderTags();
+}
+
+function removeTag(id) {
+  tags = tags.filter(t => t.id !== id);
+  renderTags();
+}
+
+function setTagField(id, field, val) {
+  const t = tags.find(t => t.id === id);
+  if (t) { t[field] = val; if (field === 'action') renderTags(); }
+}
+
+function renderTags() {
+  const c = document.getElementById('tags-container');
+  if (!tags.length) {
+    c.innerHTML = '<p style="font-size:.82rem;color:#94a3b8;padding:.4rem 0">No overrides — the selected profile will be applied as-is.</p>';
+    return;
+  }
+
+  const dlist = COMMON_TAGS.map(t => `<option value="${t}">`).join('');
+
+  c.innerHTML = `<datalist id="tag-dl">${dlist}</datalist>` +
+    tags.map(t => {
+      let valField;
+      if (t.action === 'replace') {
+        valField = `<div class="val-f"><input type="text" value="${e(t.value)}"
+          placeholder="replacement" oninput="setTagField(${t.id},'value',this.value)"></div>`;
+      } else if (t.action === 'jitter') {
+        valField = `<div class="val-f"><input type="number" value="${t.days}" min="1"
+          title="±N days" placeholder="90" oninput="setTagField(${t.id},'days',+this.value)"></div>`;
+      } else {
+        valField = `<div class="val-f"><input type="text" disabled placeholder="—"
+          style="opacity:.35;cursor:not-allowed"></div>`;
+      }
+      return `
+<div class="tag-row">
+  <div class="tag-f"><input type="text" list="tag-dl" value="${e(t.tag)}"
+    placeholder="e.g. PatientName" oninput="setTagField(${t.id},'tag',this.value)"></div>
+  <div class="act-f"><select onchange="setTagField(${t.id},'action',this.value)">
+    <option value="remove" ${t.action==='remove'?'selected':''}>remove</option>
+    <option value="replace" ${t.action==='replace'?'selected':''}>replace</option>
+    <option value="jitter" ${t.action==='jitter'?'selected':''}>jitter (date ±N days)</option>
+    <option value="random_name" ${t.action==='random_name'?'selected':''}>random_name</option>
+  </select></div>
+  ${valField}
+  <button class="del-btn" onclick="removeTag(${t.id})" title="Remove">✕</button>
+</div>`;
+    }).join('');
+}
+
+// ── OCR ───────────────────────────────────────────────────────────────────
+function onOcrToggle() {
+  document.getElementById('ocr-details')
+    .classList.toggle('hidden', !document.getElementById('ocr-enabled').checked);
+}
+
+// ── Archive ───────────────────────────────────────────────────────────────
+function onArchiveToggle() {
+  document.getElementById('archive-details')
+    .classList.toggle('hidden', !document.getElementById('archive-enabled').checked);
+}
+
+// ── YAML generation ───────────────────────────────────────────────────────
+function q(str) {
+  if (str === null || str === undefined) return '""';
+  str = String(str);
+  if (!str) return '""';
+  // Quote strings containing YAML special characters
+  if (/[:{}[\],#&*?|<>=!%@`\\]/.test(str) || /^\s|\s$/.test(str)
+      || /^[-\d]/.test(str)
+      || /^(true|false|null|yes|no|on|off)$/i.test(str)) {
+    return '"' + str.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
+  }
+  return str;
+}
+
+function buildYAML() {
+  const lines = [];
+
+  // anonymisation
+  const anonOn = document.getElementById('anon-enabled').checked;
+  lines.push('anonymisation:');
+  lines.push('  enabled: ' + anonOn);
+  if (anonOn) {
+    lines.push('  profile: ' + document.getElementById('anon-profile').value);
+    const activeTags = tags.filter(t => t.tag.trim());
+    if (activeTags.length) {
+      lines.push('  tags:');
+      activeTags.forEach(t => {
+        lines.push('    - tag: ' + t.tag);
+        lines.push('      action: ' + t.action);
+        if (t.action === 'replace') lines.push('      value: ' + q(t.value));
+        if (t.action === 'jitter')  lines.push('      days: ' + (t.days || 90));
+      });
+    }
+  }
+  lines.push('');
+
+  // ocr
+  const ocrOn = document.getElementById('ocr-enabled').checked;
+  lines.push('ocr:');
+  lines.push('  enabled: ' + ocrOn);
+  if (ocrOn) {
+    lines.push('  max_frames: ' + (parseInt(document.getElementById('ocr-max-frames').value) || 1));
+  }
+  lines.push('');
+
+  // sources
+  const globalFileRegex = v('global-file-regex');
+  if (globalFileRegex) {
+    lines.push('file_regex: ' + q(globalFileRegex));
+    lines.push('');
+  }
+  lines.push('sources:');
+  sources.forEach(src => {
+    const name = (src.name.trim() || ('source_' + src.id)).replace(/\s+/g, '_');
+    lines.push('  ' + name + ':');
+    lines.push('    type: ' + src.type);
+    if (src.type === 'filesystem') {
+      lines.push('    directory: ' + q(src.directory));
+      if (src.fileRegex.trim()) lines.push('    file_regex: ' + q(src.fileRegex));
+      if (src.includeArchives)   lines.push('    include_archives: true');
+    } else {
+      lines.push('    aet: ' + src.aet);
+      lines.push('    aec: ' + src.aec);
+      lines.push('    aem: ' + src.aem);
+      lines.push('    ip: '  + q(src.ip));
+      lines.push('    port: ' + src.port);
+      lines.push('    store_port: ' + src.storePort);
+      if (src.pdu) lines.push('    pdu: ' + src.pdu);
+      const validKeys = (src.keys || []).filter(k => k.trim());
+      if (validKeys.length) {
+        lines.push('    keys:');
+        validKeys.forEach(k => lines.push('      - ' + q(k)));
+      }
+    }
+  });
+  lines.push('');
+
+  // destination
+  lines.push('destination:');
+  lines.push('  files:');
+  lines.push('    directory: ' + q(v('dest-dir') || '/output'));
+  const archOn = document.getElementById('archive-enabled').checked;
+  if (archOn) {
+    lines.push('    archive:');
+    lines.push('      enabled: true');
+    lines.push('      group_by: ' + document.getElementById('archive-group-by').value);
+  }
+  lines.push('  metadata:');
+  lines.push('    dbType: ' + document.getElementById('db-type').value);
+  lines.push('    connectionString: ' + q(v('db-conn')));
+  lines.push('    index: ' + (v('db-index') || 'SOPInstanceUID'));
+
+  return lines.join('\n');
+}
+
+function renderYAML() {
+  document.getElementById('yaml-output').textContent = buildYAML();
+}
+
+// ── Copy ──────────────────────────────────────────────────────────────────
+function copyYAML() {
+  const yaml = buildYAML();
+  const btn = document.getElementById('copy-btn');
+  const done = () => { btn.textContent = 'Copied!'; setTimeout(() => btn.textContent = 'Copy', 1600); };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(yaml).then(done).catch(() => fallbackCopy(yaml, done));
+  } else {
+    fallbackCopy(yaml, done);
+  }
+}
+
+function fallbackCopy(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  Object.assign(ta.style, { position: 'fixed', opacity: '0', pointerEvents: 'none' });
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); cb(); } catch (_) {}
+  document.body.removeChild(ta);
+}
+
+// ── Download ──────────────────────────────────────────────────────────────
+function downloadYAML() {
+  const yaml = buildYAML();
+  const blob = new Blob([yaml], { type: 'text/yaml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.getElementById('dl-link');
+  a.href = url; a.download = 'config.yml'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function e(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+addSource();
+renderSources();
+renderTags();
+renderStep();
+</script>
+</body>
+</html>
