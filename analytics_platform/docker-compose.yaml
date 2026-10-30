@@ -11,7 +11,7 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
       # Persists Loki's log database files
-      - C:\Users\jfriel001\git\SCAMPI\analytics_platform\loki:/loki
+      - ./loki:/loki
     networks:
       - loki
 
@@ -19,7 +19,7 @@ services:
     image: grafana/promtail:3.0.0
     volumes:
       - ./promtail-config.yaml:/etc/promtail/config.yml
-      - C:\Users\jfriel001\git\SCAMPI\processing_engine/logs/:/var/log/app/
+      - ..\processing_engine/logs/:/var/log/app/
     command: -config.file=/etc/promtail/config.yml
     networks:
       - loki
@@ -31,6 +31,6 @@ services:
     user: '0'
     volumes:
       # Persists dashboards, users, and data sources
-      - C:\Users\jfriel001\git\SCAMPI\analytics_platform\grafana:/var/lib/grafana
+      - ./grafana:/var/lib/grafana
     networks:
       - loki
