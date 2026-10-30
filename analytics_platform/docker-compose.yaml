@@ -1,0 +1,36 @@
+version: "3"
+
+networks:
+  loki:
+
+services:
+  loki:
+    image: grafana/loki:3.0.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      # Persists Loki's log database files
+      - ./loki:/loki
+    networks:
+      - loki
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    volumes:
+      - ./promtail-config.yaml:/etc/promtail/config.yml
+      - ..\processing_engine/logs/:/var/log/app/
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - loki
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    user: '0'
+    volumes:
+      # Persists dashboards, users, and data sources
+      - ./grafana:/var/lib/grafana
+    networks:
+      - loki
