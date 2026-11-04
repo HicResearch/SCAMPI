@@ -10,7 +10,7 @@ SCAMPI is a DICOM processing engine that extracts DICOM files from a source (loc
 
 ## Configuration
 
-Copy `processing_engine/sample_config.yml` to `config.yml` and edit it before running. Full a full [configuration wizard](https://hicresearch.github.io/SCAMPI/wizard.html) is also available.
+Copy `processing_engine/sample_config.yml` to `config.yml` and edit it before running. A [configuration wizard](https://hicresearch.github.io/SCAMPI/wizard.html) is also available.
 
 ```yaml
 sources:

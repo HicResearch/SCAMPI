@@ -3,7 +3,7 @@ SCAMPI (Scalable Clinical Imaging Processing and Management) extracts DICOM file
 
 ## Architecture Overview
 
-SCAMPI is a terminal-based batch-processing application. It is designed to be ran via Docker container.
+SCAMPI is a terminal-based batch-processing application. It is designed to be run via Docker container.
 A configuration file, see [config wizard](https://hicresearch.github.io/SCAMPI/wizard.html), must be mounted to `/config/yml` within the Docker container.
 This configuration files contains details about data sources, metadata destination and file destination.
 
