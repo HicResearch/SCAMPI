@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101b24">
   <meta name="description" content="Create a SCAMPI config.yml for your DICOM sources and SQL Server setup.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <title>SCAMPI — Configuration wizard</title>
   <style>
     :root {
@@ -109,12 +110,11 @@
   <header>
     <div class="topbar shell">
       <a class="brand" href="index.html">
-        <span class="mark" aria-hidden="true">⌁</span>
+        <span class="mark" aria-hidden="true">🦐</span>
         <span class="brand-name">SCAMPI<small>DICOM processing engine</small></span>
       </a>
       <nav aria-label="Main navigation" style="display:flex;align-items:center;gap:18px">
-        <a class="back-link" href="metrics.html">Metrics &amp; use cases</a>
-        <a class="back-link" href="index.html">← Overview</a>
+        <a class="back-link" href="index.html">Overview</a>
       </nav>
     </div>
   </header>
@@ -122,8 +122,7 @@
   <main class="shell">
     <div class="intro">
       <div class="eyebrow">Configuration builder</div>
-      <h1>Your setup, one step at a time.</h1>
-      <p>Tell us where your DICOM files live and where you want the results. The wizard builds a <code>config.yml</code> in your browser—nothing is uploaded.</p>
+      <p>Tell us where your DICOM files live and where you want the results. The wizard builds a <code>config.yml</code> in your browser - nothing leaves your computer.</p>
     </div>
 
     <div class="progress" aria-label="Configuration steps">
@@ -135,7 +134,6 @@
 
     <form id="config-form" novalidate>
       <section class="card">
-        <div class="card-head">
           <h2 id="panel-title" tabindex="-1">Where should SCAMPI get DICOM files?</h2>
           <p id="panel-description">Add one or more sources. Paths refer to locations inside the SCAMPI container.</p>
         </div>
@@ -164,7 +162,7 @@
             </div>
             <div class="field">
               <label for="index-column">Database index column</label>
-              <input id="index-column" name="index-column" value="some_column" required>
+              <input id="index-column" name="index-column" placeholder="some_column">
               <small>Used as the index label when SCAMPI writes metadata.</small>
             </div>
           </div>

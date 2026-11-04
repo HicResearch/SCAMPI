@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101b24">
   <meta name="description" content="SCAMPI is a Docker-native DICOM processing engine for extracting metadata from filesystem and PACS sources into SQL Server.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <title>SCAMPI — DICOM, in motion</title>
   <style>
     :root {
@@ -346,11 +347,10 @@
   <div class="hero-wrap">
     <header class="topbar shell">
       <a class="masthead" href="#top" aria-label="SCAMPI home">
-        <span class="mark" aria-hidden="true">⌁</span>
+        <span class="mark" aria-hidden="true">🦐</span>
         <span class="brand">SCAMPI<small>DICOM processing engine</small></span>
       </a>
       <nav class="nav" aria-label="Main navigation">
-        <a href="#capabilities">Capabilities</a>
         <a href="#quickstart">Quick start</a>
         <a href="wizard.html">Config wizard</a>
         <a class="nav-cta" href="https://github.com/HicResearch/SCAMPI">View on GitHub <span aria-hidden="true">↗</span></a>
@@ -361,7 +361,7 @@
       <div class="hero-copy">
         <div class="eyebrow">A focused DICOM pipeline</div>
         <h1>Move medical data.<br><span>Make it useful.</span></h1>
-        <p>SCAMPI collects DICOM files from a filesystem or PACS, extracts the metadata you need, and delivers it to SQL Server alongside the files.</p>
+        <p>SCAMPI collects DICOM files from a filesystem or PACS, extracts the metadata you need, and delivers it to a SQL Server alongside the files.</p>
         <div class="actions">
           <a class="button button-primary" href="wizard.html">Build your config <span class="arrow" aria-hidden="true">→</span></a>
           <a class="button button-quiet" href="https://github.com/HicResearch/SCAMPI#readme">Read the docs <span class="arrow" aria-hidden="true">↗</span></a>
@@ -379,7 +379,7 @@
           </div>
           <span class="flow-arrow">→</span>
           <div class="flow-node core">
-            <span class="node-icon">⌁</span>
+            <span class="node-icon">🦐</span>
             <span class="node-label">SCAMPI</span>
             <span class="node-caption">Read · extract<br>· route</span>
           </div>
@@ -399,7 +399,7 @@
     <div class="proof" aria-label="Project highlights">
       <div class="proof-item"><strong>Two ways in</strong><span>Local directories or PACS queries</span></div>
       <div class="proof-item"><strong>One clear config</strong><span>Keep sources and destinations in YAML</span></div>
-      <div class="proof-item"><strong>Built for Docker</strong><span>Run the same image where you need it</span></div>
+      <div class="proof-item"><strong>Built for Docker</strong><span>Run the same image anywhere you need it</span></div>
     </div>
   </div>
 
@@ -439,11 +439,11 @@
         <div class="eyebrow">Quick start</div>
         <h2>Up and running in three steps.</h2>
         <p>Configure your source and SQL Server connection, build the image, then mount the paths SCAMPI needs.</p>
-        <div class="requirements" aria-label="Prerequisites">
+        <!-- <div class="requirements" aria-label="Prerequisites">
           <span>Docker</span>
           <span>SQL Server</span>
           <span>DICOM source</span>
-        </div>
+        </div> -->
       </div>
       <div class="steps">
         <article class="step">
