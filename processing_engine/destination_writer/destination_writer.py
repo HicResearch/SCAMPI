@@ -14,6 +14,13 @@ def write_file(config,logger,dataframe):
     destination = os.path.expanduser(config['destination']['files']['directory'])
     os.makedirs(destination, exist_ok=True)
 
+    if config['destination']['files'].get('compress', False):
+        logger.info({
+            "message": f"Files were written to the compressed archive in {destination}",
+            "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
+        })
+        return
+
     written_archives = []
 
     for _, row in dataframe.iterrows():
@@ -42,7 +49,8 @@ def write_metadata(config,logger, table_name, dataframe):
     df_to_write = dataframe.copy(deep=True);
     dbType =  config['destination']['metadata']['dbType']
     index = config['destination']['metadata']['index']
-    if 'RelativeFileArchiveURI' in df_to_write:
+    compress = config.get('destination', {}).get('files', {}).get('compress', False)
+    if 'RelativeFileArchiveURI' in df_to_write and not compress:
         destination =  config['destination']['files']['directory']
         for index, row in df_to_write.iterrows():
              if row.get("RelativeFileArchiveURI") is not None:
@@ -84,4 +92,3 @@ def destination_writer(config, logger, table_name,dataframe):
     write_metadata(config,logger, table_name,dataframe)
     if 'RelativeFileArchiveURI' in dataframe:
         write_file(config, logger,dataframe)
-

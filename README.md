@@ -46,6 +46,10 @@ destination:
 ```
 
 Use `host.docker.internal` as the hostname to reach SQL Server running on the Docker host machine.
+When `destination.files.compress` is enabled, processed files are written to a
+`YYYYMMDD.7z` archive in the destination directory. `RelativeFileArchiveURI`
+metadata includes the destination path and points to each member using
+`<destination>/YYYYMMDD.7z!member/path`.
 
 ## Building the Docker image
 

@@ -1,11 +1,13 @@
 import os
 import shutil
+import datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
 import pydicom
+import py7zr
 import yaml
 from pydicom.dataset import FileDataset, FileMetaDataset
 
@@ -458,3 +460,52 @@ def test_metadata_processor_handles_none_record_in_result(
     metadata_processor.metadata_processor(config, logger)
 
     assert logger.info.call_args.args[0]["file_count"] == 1
+
+
+def test_metadata_processor_compresses_files_and_updates_archive_uri(
+    tmp_path, monkeypatch, patched_executor, mock_destination_writer
+):
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
+        {"ColumnName": "PatientID"},
+        {"ColumnName": "RelativeFileArchiveURI"},
+    ]}])
+    write_dicom(source_dir / "image.dcm")
+    archived_source = source_dir / "scan.7z"
+    archived_dicom = tmp_path / "archived-image.dcm"
+    write_dicom(archived_dicom, patient_id="patient-archived")
+    with py7zr.SevenZipFile(archived_source, mode="w") as archive:
+        archive.write(archived_dicom, arcname="image.dcm")
+    extracted_dir = tmp_path / "received_dicoms" / "scans" / "scan.7z"
+    extracted_dir.mkdir(parents=True)
+    with py7zr.SevenZipFile(archived_source, mode="r") as archive:
+        archive.extractall(path=extracted_dir)
+    monkeypatch.chdir(tmp_path)
+    logger = Mock()
+    config = {
+        "sources": {
+            "scans": {
+                "type": "filesystem",
+                "directory": str(source_dir),
+                "include_archives": True,
+            }
+        },
+        "destination": {"files": {"directory": str(tmp_path / "output"), "compress": True}},
+    }
+
+    metadata_processor.metadata_processor(config, logger)
+
+    archive_name = datetime.date.today().strftime("%Y%m%d") + ".7z"
+    archive_path = tmp_path / "output" / archive_name
+    with py7zr.SevenZipFile(archive_path, mode="r") as archive:
+        assert set(archive.getnames()) == {
+            "scans/image.dcm",
+            "scans/scan.7z/image.dcm",
+        }
+
+    written_dataframe = mock_destination_writer.call_args.args[3]
+    assert set(written_dataframe["RelativeFileArchiveURI"]) == {
+        f"{archive_path.as_posix()}!scans/image.dcm",
+        f"{archive_path.as_posix()}!scans/scan.7z/image.dcm",
+    }
