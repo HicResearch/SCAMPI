@@ -142,6 +142,42 @@ def test_write_metadata_preserves_compressed_archive_uri(monkeypatch):
     assert written_dataframes[0]["RelativeFileArchiveURI"].iloc[0] == archive_uri
 
 
+@pytest.mark.parametrize(
+    ("compress", "uri", "expected_uri"),
+    [
+        (False, "/source/test.dcm", "/my_custom_directory/source/test.dcm"),
+        (
+            True,
+            "/output/20261105.7z!scans/image.dcm",
+            "/my_custom_directory/20261105.7z!scans/image.dcm",
+        ),
+    ],
+)
+def test_write_metadata_replaces_destination_with_metadata_directory(
+    monkeypatch, compress, uri, expected_uri
+):
+    written_dataframes = []
+    monkeypatch.setattr(
+        pd.DataFrame,
+        "to_sql",
+        lambda dataframe, *args, **kwargs: written_dataframes.append(dataframe.copy()),
+    )
+    config = {
+        "destination": {
+            "files": {
+                "directory": "/output",
+                "compress": compress,
+                "metadata_directory": "/my_custom_directory",
+            },
+            "metadata": {"dbType": "MSSQL", "connectionString": "fake", "index": "id"},
+        }
+    }
+
+    write_metadata(config, Mock(), "TestTable", pd.DataFrame({"RelativeFileArchiveURI": [uri]}))
+
+    assert written_dataframes[0]["RelativeFileArchiveURI"].iloc[0].replace("\\", "/") == expected_uri
+
+
 def test_write_file_skips_copy_when_destination_is_none(monkeypatch):
     """write_file does not call shutil.copyfile when get_destination_location returns None."""
     mock_copyfile = Mock()

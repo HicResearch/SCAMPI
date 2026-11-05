@@ -49,14 +49,34 @@ def write_metadata(config,logger, table_name, dataframe):
     df_to_write = dataframe.copy(deep=True);
     dbType =  config['destination']['metadata']['dbType']
     index = config['destination']['metadata']['index']
-    compress = config.get('destination', {}).get('files', {}).get('compress', False)
-    if 'RelativeFileArchiveURI' in df_to_write and not compress:
-        destination =  config['destination']['files']['directory']
+    files_config = config.get('destination', {}).get('files', {})
+    compress = files_config.get('compress', False)
+    metadata_directory = files_config.get('metadata_directory')
+    if 'RelativeFileArchiveURI' in df_to_write:
+        destination = os.path.expanduser(files_config['directory'])
         for index, row in df_to_write.iterrows():
-             if row.get("RelativeFileArchiveURI") is not None:
-                destination_file = os.path.join(destination,'/'.join(row['RelativeFileArchiveURI'].split('/')[1:]))
-                if destination_file is not None:
-                    df_to_write.at[index,'RelativeFileArchiveURI'] = destination_file
+            uri = row.get("RelativeFileArchiveURI")
+            if uri is None:
+                continue
+            if compress:
+                archive_path, member = uri.split("!", 1)
+                if metadata_directory:
+                    relative_path = os.path.relpath(archive_path, destination)
+                    archive_path = os.path.join(
+                        os.path.expanduser(metadata_directory), relative_path
+                    )
+                destination_file = f"{archive_path}!{member}"
+            else:
+                destination_file = os.path.join(
+                    destination, "/".join(uri.split("/")[1:])
+                )
+                if metadata_directory:
+                    relative_path = os.path.relpath(destination_file, destination)
+                    destination_file = os.path.join(
+                        os.path.expanduser(metadata_directory), relative_path
+                    )
+
+            df_to_write.at[index, "RelativeFileArchiveURI"] = destination_file.replace("\\", "/")
 
     if dbType == 'MSSQL':
         logger.debug({
