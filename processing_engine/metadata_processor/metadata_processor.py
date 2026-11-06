@@ -143,7 +143,7 @@ def process(file,root_directory,name, logger, compress=False):
     filename = os.fsdecode(file)
     records = []
         
-    if filename.endswith('.7z'):
+    if filename.endswith(('.7z', '.zip')):
         archive_extraction_dir = os.path.join("./received_dicoms",name,filename);
         for f in get_file_names_from_directory_recursive(archive_extraction_dir):
             try:
@@ -254,7 +254,7 @@ def metadata_processor(config, logger):
                                 if (any(fn.endswith(ext) for ext in included_extensions) or re.search(r".*\.[0-9]*$",fn))]
             if compress:
                 for filename in files:
-                    if filename.endswith(".7z"):
+                    if filename.endswith((".7z", ".zip")):
                         extracted_dir = os.path.join("./received_dicoms", name, filename)
                         for extracted_file in get_file_names_from_directory_recursive(extracted_dir):
                             relative_path = os.path.relpath(extracted_file, extracted_dir)
