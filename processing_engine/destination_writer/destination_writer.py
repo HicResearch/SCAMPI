@@ -6,8 +6,8 @@ import mysql
 import sqlalchemy
 def get_destination_location(row,destination):
     if('!' in row['RelativeFileArchiveURI']):
-        return os.path.join(destination,row['RelativeFileArchiveURI'].split('!')[0].split('/')[-1])
-    return os.path.join(destination,row['RelativeFileArchiveURI'].split('/')[-1])
+        return os.path.join(destination,row['RelativeFileArchiveURI'].split('!')[0].strip('/').split('/')[-1])
+    return os.path.join(destination,row['RelativeFileArchiveURI'].strip('/').split('/')[-1])
 
 def write_file(config,logger,dataframe):
     start_time = datetime.datetime.now(datetime.UTC)
@@ -59,16 +59,16 @@ def write_metadata(config,logger, table_name, dataframe):
             if uri is None:
                 continue
             if compress:
-                archive_path, member = uri.split("!", 1)
+                archive_path, member = uri.split('!',1)
                 if metadata_directory:
-                    relative_path = os.path.relpath(archive_path, destination)
+                    relative_path = archive_path.replace(destination,metadata_directory)#os.path.relpath(archive_path, destination)
                     archive_path = os.path.join(
                         os.path.expanduser(metadata_directory), relative_path
                     )
                 destination_file = f"{archive_path}!{member}"
             else:
                 destination_file = os.path.join(
-                    destination, "/".join(uri.split("/")[1:])
+                    destination, "/".join(uri.strip('/').split("/")[1:])
                 )
                 if metadata_directory:
                     relative_path = os.path.relpath(destination_file, destination)

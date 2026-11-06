@@ -145,7 +145,7 @@ def test_write_metadata_preserves_compressed_archive_uri(monkeypatch):
 @pytest.mark.parametrize(
     ("compress", "uri", "expected_uri"),
     [
-        (False, "/source/test.dcm", "/my_custom_directory/source/test.dcm"),
+        (False, "/source/test.dcm", "/my_custom_directory/test.dcm"),
         (
             True,
             "/output/20261105.7z!scans/image.dcm",

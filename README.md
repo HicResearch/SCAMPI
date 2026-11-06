@@ -39,6 +39,7 @@ destination:
   files:
     directory: /output            # path inside the container (see volume mounts below)
     compress: true
+    # archive_name_template: "SCAMPI_%Y%m%d.7z" # optional: strftime template; defaults to "%Y%m%d.7z"
     metadata_directory: /my_custom_directory # optional: path prefix to use for database file URIs
   metadata:
     dbType: MSSQL
@@ -48,9 +49,12 @@ destination:
 
 Use `host.docker.internal` as the hostname to reach SQL Server running on the Docker host machine.
 When `destination.files.compress` is enabled, processed files are written to a
-`YYYYMMDD.7z` archive in the destination directory. `RelativeFileArchiveURI`
+`YYYYMMDD.7z` archive in the destination directory. Set
+`destination.files.archive_name_template` to a Python `strftime` template to
+customize its filename (for example, `SCAMPI_%Y%m%d.7z`); the default is
+`%Y%m%d.7z`. `RelativeFileArchiveURI`
 metadata includes the destination path and points to each member using
-`<destination>/YYYYMMDD.7z!member/path`.
+`<destination>/<archive filename>!member/path`.
 Set `destination.files.metadata_directory` to substitute another path prefix
 in database URIs without changing where files are stored; for example,
 `/output/source/test.dcm` becomes
