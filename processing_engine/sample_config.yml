@@ -18,6 +18,7 @@ destination:
   files:
     directory: /output
     compress: true
+    metadata_directory: /my_custom_directory # optional: path prefix to use for database file URIs
   metadata:
     dbType: MSSQL
     connectionString: mssql+pyodbc://scampi:scampi@host.docker.internal,1433/SCAMPI?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes

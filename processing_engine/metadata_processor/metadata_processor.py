@@ -9,6 +9,7 @@ import datetime
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 import re
+import py7zr
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
 modality_templates_location="/templates"
 
@@ -51,7 +52,7 @@ def get_modality_table(modality,table_name):
     return modality_tables.get(modality+'_'+table_name,None)
 
 
-def _datasetProcess(ds,root_directory,filename,logger):
+def _datasetProcess(ds,root_directory,filename,logger,relative_file_archive_uri=None):
     records = []
     modality = None
     modality_config = None
@@ -99,7 +100,11 @@ def _datasetProcess(ds,root_directory,filename,logger):
                     record.append(data_element.value)
                 continue
             elif column["ColumnName"] == "RelativeFileArchiveURI":
-                    record.append(root_directory +'/'+filename)
+                    record.append(
+                        relative_file_archive_uri
+                        if relative_file_archive_uri is not None
+                        else root_directory +'/'+filename
+                    )
                     continue
             try:
                 data_element = ds.data_element(column["ColumnName"])
@@ -134,7 +139,7 @@ def get_file_names_from_directory_recursive(dir):
             filenames.append(os.path.join(dir,f))
     return filenames
 
-def process(file,root_directory,name, logger):
+def process(file,root_directory,name, logger, compress=False):
     filename = os.fsdecode(file)
     records = []
         
@@ -143,16 +148,70 @@ def process(file,root_directory,name, logger):
         for f in get_file_names_from_directory_recursive(archive_extraction_dir):
             try:
                 ds = pydicom.dcmread(f, stop_before_pixels=True)
-                records = records + _datasetProcess(ds,root_directory,filename+'!'+f.split(filename)[1][1:],logger)
+                relative_file_archive_uri = f if compress else None
+                records = records + _datasetProcess(
+                    ds,
+                    root_directory,
+                    filename+'!'+f.split(filename)[1][1:],
+                    logger,
+                    relative_file_archive_uri,
+                )
             except Exception as e:
                 continue
     else:
         try:
             ds = pydicom.dcmread(root_directory +'/'+filename, stop_before_pixels=True)
-            records = _datasetProcess(ds,root_directory,filename,logger)
+            source_path = root_directory +'/'+filename
+            records = _datasetProcess(
+                ds,
+                root_directory,
+                filename,
+                logger,
+                source_path if compress else None,
+            )
         except:
             pass
     return records
+
+
+def _write_compressed_archive(config, logger, archive_members):
+    destination = os.path.expanduser(config['destination']['files']['directory'])
+    files_to_archive = {}
+    for dataframe in modality_tables.values():
+        if "RelativeFileArchiveURI" not in dataframe:
+            continue
+        for uri in dataframe["RelativeFileArchiveURI"].dropna():
+            source_path = os.path.abspath(str(uri))
+            member = archive_members.get(source_path)
+            if member is not None:
+                files_to_archive[source_path] = member
+
+    if not files_to_archive:
+        return
+
+    os.makedirs(destination, exist_ok=True)
+    archive_name = datetime.date.today().strftime("%Y%m%d") + ".7z"
+    archive_path = os.path.join(destination, archive_name)
+    archive_uri = archive_path.replace("\\", "/")
+    with py7zr.SevenZipFile(archive_path, mode="w") as archive:
+        for source_path, member in files_to_archive.items():
+            archive.write(source_path, arcname=member)
+
+    for dataframe in modality_tables.values():
+        if "RelativeFileArchiveURI" not in dataframe:
+            continue
+        for index, uri in dataframe["RelativeFileArchiveURI"].items():
+            if uri is None or pd.isna(uri):
+                continue
+            member = archive_members.get(os.path.abspath(str(uri)))
+            if member is None:
+                raise ValueError(f"Unable to locate processed file for archive URI: {uri}")
+            dataframe.at[index, "RelativeFileArchiveURI"] = f"{archive_uri}!{member}"
+
+    logger.info({
+        "message": f"Compressed {len(files_to_archive)} files into {archive_path}",
+        "timestamp": datetime.datetime.now(datetime.UTC).timestamp(),
+    })
 
 
 def metadata_processor(config, logger):
@@ -165,6 +224,8 @@ def metadata_processor(config, logger):
     file_count=0
     file_regex = config.get("file_regex",None)
     include_archives = config.get("include_archives",None)
+    compress = config.get("destination", {}).get("files", {}).get("compress", False)
+    archive_members = {}
     for name, source in config['sources'].items():
         root_directory = None
         if source['type'] == 'filesystem':
@@ -191,7 +252,29 @@ def metadata_processor(config, logger):
             else:   
                 files = [fn for fn in os.listdir(root_directory)
                                 if (any(fn.endswith(ext) for ext in included_extensions) or re.search(r".*\.[0-9]*$",fn))]
-            for result in list(executor.map(process, files,repeat(root_directory),repeat(name), repeat(logger))):
+            if compress:
+                for filename in files:
+                    if filename.endswith(".7z"):
+                        extracted_dir = os.path.join("./received_dicoms", name, filename)
+                        for extracted_file in get_file_names_from_directory_recursive(extracted_dir):
+                            relative_path = os.path.relpath(extracted_file, extracted_dir)
+                            archive_members[os.path.abspath(extracted_file)] = "/".join(
+                                (name, filename, relative_path.replace("\\", "/"))
+                            )
+                    else:
+                        source_path = os.path.join(root_directory, filename)
+                        relative_path = os.path.relpath(source_path, root_directory)
+                        archive_members[os.path.abspath(source_path)] = "/".join(
+                            (name, relative_path.replace("\\", "/"))
+                        )
+            for result in list(executor.map(
+                process,
+                files,
+                repeat(root_directory),
+                repeat(name),
+                repeat(logger),
+                repeat(compress),
+            )):
                 if result is not None:
                     for r in result:
                         if r is not None:
@@ -204,6 +287,8 @@ def metadata_processor(config, logger):
                 additional_records_dt = pd.DataFrame(rows, columns=modality_table.columns)
                 modality_table = pd.concat([modality_table,additional_records_dt])
                 modality_tables[key] = modality_table
+    if compress:
+        _write_compressed_archive(config, logger, archive_members)
     end_time = time.time()
     logger.info({
         "message":"Processed "+ str(file_count) + " files in " + str(end_time-start_time) + "s (" + str((end_time-start_time)/max(file_count,1)) +'s avg)',
@@ -217,5 +302,3 @@ def metadata_processor(config, logger):
     })
     for key,value in modality_tables.items():
         destination_writer(config,logger,key,value)
-
-

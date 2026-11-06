@@ -39,6 +39,7 @@ destination:
   files:
     directory: /output            # path inside the container (see volume mounts below)
     compress: true
+    metadata_directory: /my_custom_directory # optional: path prefix to use for database file URIs
   metadata:
     dbType: MSSQL
     connectionString: mssql+pyodbc://user:pass@host.docker.internal,1433/SCAMPI?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
@@ -46,6 +47,14 @@ destination:
 ```
 
 Use `host.docker.internal` as the hostname to reach SQL Server running on the Docker host machine.
+When `destination.files.compress` is enabled, processed files are written to a
+`YYYYMMDD.7z` archive in the destination directory. `RelativeFileArchiveURI`
+metadata includes the destination path and points to each member using
+`<destination>/YYYYMMDD.7z!member/path`.
+Set `destination.files.metadata_directory` to substitute another path prefix
+in database URIs without changing where files are stored; for example,
+`/output/source/test.dcm` becomes
+`/my_custom_directory/source/test.dcm`.
 
 ## Building the Docker image
 
