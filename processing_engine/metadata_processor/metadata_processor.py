@@ -190,7 +190,12 @@ def _write_compressed_archive(config, logger, archive_members):
         return
 
     os.makedirs(destination, exist_ok=True)
-    archive_name = datetime.date.today().strftime("%Y%m%d") + ".7z"
+    archive_name_template = config["destination"]["files"].get(
+        "archive_name_template", "%Y%m%d.7z"
+    )
+    if(not archive_name_template.endswith(".7z")):
+       archive_name_template = archive_name_template+".7z"
+    archive_name = datetime.date.today().strftime(archive_name_template)
     archive_path = os.path.join(destination, archive_name)
     archive_uri = archive_path.replace("\\", "/")
     with py7zr.SevenZipFile(archive_path, mode="w") as archive:

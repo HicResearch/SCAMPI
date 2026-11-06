@@ -480,8 +480,13 @@ def test_metadata_processor_handles_none_record_in_result(
     assert logger.info.call_args.args[0]["file_count"] == 1
 
 
+@pytest.mark.parametrize(
+    "archive_name_template",
+    [None, "scans_%Y%m%d.7z"],
+)
 def test_metadata_processor_compresses_files_and_updates_archive_uri(
-    tmp_path, monkeypatch, patched_executor, mock_destination_writer
+    tmp_path, monkeypatch, patched_executor, mock_destination_writer,
+    archive_name_template
 ):
     source_dir = tmp_path / "source"
     source_dir.mkdir()
@@ -510,6 +515,12 @@ def test_metadata_processor_compresses_files_and_updates_archive_uri(
         archive.extractall(path=zip_extracted_dir)
     monkeypatch.chdir(tmp_path)
     logger = Mock()
+    files_config = {
+        "directory": str(tmp_path / "output"),
+        "compress": True,
+    }
+    if archive_name_template is not None:
+        files_config["archive_name_template"] = archive_name_template
     config = {
         "sources": {
             "scans": {
@@ -518,12 +529,14 @@ def test_metadata_processor_compresses_files_and_updates_archive_uri(
                 "include_archives": True,
             }
         },
-        "destination": {"files": {"directory": str(tmp_path / "output"), "compress": True}},
+        "destination": {"files": files_config},
     }
 
     metadata_processor.metadata_processor(config, logger)
 
-    archive_name = datetime.date.today().strftime("%Y%m%d") + ".7z"
+    archive_name = datetime.date.today().strftime(
+        archive_name_template or "%Y%m%d.7z"
+    )
     archive_path = tmp_path / "output" / archive_name
     with py7zr.SevenZipFile(archive_path, mode="r") as archive:
         assert set(archive.getnames()) == {
