@@ -483,8 +483,12 @@ def test_metadata_processor_handles_none_record_in_result(
 
 
 @pytest.mark.parametrize("archive_extension", ["7z", "zip"])
+@pytest.mark.parametrize(
+    "archive_name_template",
+    [None, "scans_%Y%m%d.7z"],
+)
 def test_metadata_processor_compresses_files_and_updates_archive_uri(
-    tmp_path, monkeypatch, patched_executor, mock_destination_writer, archive_extension
+    tmp_path, monkeypatch, patched_executor, mock_destination_writer, archive_extension,archive_name_template
 ):
     source_dir = tmp_path / "source"
     source_dir.mkdir()
