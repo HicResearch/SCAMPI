@@ -9,6 +9,19 @@ def get_destination_location(row,destination):
         return os.path.join(destination,row['RelativeFileArchiveURI'].split('!')[0].strip('/').split('/')[-1])
     return os.path.join(destination,row['RelativeFileArchiveURI'].strip('/').split('/')[-1])
 
+def _source_relative_path(uri, sources):
+    uri_path = os.path.abspath(uri)
+    for source in sources.values():
+        if source.get("type") != "filesystem" or not source.get("directory"):
+            continue
+        source_path = os.path.abspath(os.path.expanduser(source["directory"]))
+        try:
+            if os.path.commonpath([uri_path, source_path]) == source_path:
+                return os.path.relpath(uri_path, source_path)
+        except ValueError:
+            continue
+    return None
+
 def write_file(config,logger,dataframe):
     start_time = datetime.datetime.now(datetime.UTC)
     destination = os.path.expanduser(config['destination']['files']['directory'])
@@ -71,7 +84,11 @@ def write_metadata(config,logger, table_name, dataframe):
                     destination, "/".join(uri.strip('/').split("/")[1:])
                 )
                 if metadata_directory:
-                    relative_path = os.path.relpath(destination_file, destination)
+                    relative_path = _source_relative_path(
+                        uri, config.get("sources", {})
+                    )
+                    if relative_path is None:
+                        relative_path = os.path.relpath(destination_file, destination)
                     destination_file = os.path.join(
                         os.path.expanduser(metadata_directory), relative_path
                     )

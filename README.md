@@ -22,7 +22,7 @@ sources:
     type: filesystem              # "filesystem" or "pacs"
     directory: /my_images         # path inside the container (see volume mounts below)
     file_regex: .*                # optional: filter filenames by regex
-    include_archives: True        # optional: also process .7z archives
+    include_archives: True        # optional: also process .7z and .zip archives
   pacs_source:
     type: pacs
     aet: LOCALMACHINE           # your calling AE title
@@ -39,8 +39,14 @@ destination:
   files:
     directory: /output            # path inside the container (see volume mounts below)
     compress: true
+<<<<<<< HEAD
+    metadata_directory: /my_custom_directory # optional: replacement source path for database file URIs
+||||||| 80c9dff
+    metadata_directory: /my_custom_directory # optional: path prefix to use for database file URIs
+=======
     # archive_name_template: "SCAMPI_%Y%m%d.7z" # optional: strftime template; defaults to "%Y%m%d.7z"
     metadata_directory: /my_custom_directory # optional: path prefix to use for database file URIs
+>>>>>>> c338175e48e271e2aad7b0b68cc661a79b179b30
   metadata:
     dbType: MSSQL
     connectionString: mssql+pyodbc://user:pass@host.docker.internal,1433/SCAMPI?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
@@ -54,11 +60,26 @@ When `destination.files.compress` is enabled, processed files are written to a
 customize its filename (for example, `SCAMPI_%Y%m%d.7z`); the default is
 `%Y%m%d.7z`. `RelativeFileArchiveURI`
 metadata includes the destination path and points to each member using
+<<<<<<< HEAD
+`<destination>/YYYYMMDD.7z!member/path`.
+Set `destination.files.metadata_directory` to replace the configured filesystem
+source directory in database URIs without changing where files are stored. For
+example, with a source directory of `/my_images`, the URI
+`/my_images/subdir/test.dcm` becomes
+`/my_custom_directory/subdir/test.dcm`.
+||||||| 80c9dff
+`<destination>/YYYYMMDD.7z!member/path`.
+Set `destination.files.metadata_directory` to substitute another path prefix
+in database URIs without changing where files are stored; for example,
+`/output/source/test.dcm` becomes
+`/my_custom_directory/source/test.dcm`.
+=======
 `<destination>/<archive filename>!member/path`.
 Set `destination.files.metadata_directory` to substitute another path prefix
 in database URIs without changing where files are stored; for example,
 `/output/source/test.dcm` becomes
 `/my_custom_directory/source/test.dcm`.
+>>>>>>> c338175e48e271e2aad7b0b68cc661a79b179b30
 
 ## Building the Docker image
 

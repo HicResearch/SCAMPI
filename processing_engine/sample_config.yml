@@ -3,7 +3,7 @@ sources:
     type: filesystem
     directory: /my_images
     file_regex: .*
-    include_archives: True
+    include_archives: false
   # other_friendly_name:
   #   type: pacs
   #   aet: LOCALMACHINE

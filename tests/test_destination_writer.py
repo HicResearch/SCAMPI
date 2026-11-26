@@ -170,12 +170,43 @@ def test_write_metadata_replaces_destination_with_metadata_directory(
                 "metadata_directory": "/my_custom_directory",
             },
             "metadata": {"dbType": "MSSQL", "connectionString": "fake", "index": "id"},
-        }
+        },
+        "sources": {"images": {"type": "filesystem", "directory": "/source"}},
     }
 
     write_metadata(config, Mock(), "TestTable", pd.DataFrame({"RelativeFileArchiveURI": [uri]}))
 
     assert written_dataframes[0]["RelativeFileArchiveURI"].iloc[0].replace("\\", "/") == expected_uri
+
+
+def test_write_metadata_replaces_source_mount_with_metadata_directory(monkeypatch):
+    written_dataframes = []
+    monkeypatch.setattr(
+        pd.DataFrame,
+        "to_sql",
+        lambda dataframe, *args, **kwargs: written_dataframes.append(dataframe.copy()),
+    )
+    config = {
+        "sources": {"images": {"type": "filesystem", "directory": "/my_images"}},
+        "destination": {
+            "files": {
+                "directory": "/output",
+                "metadata_directory": "/output_images",
+            },
+            "metadata": {"dbType": "MSSQL", "connectionString": "fake", "index": "id"},
+        },
+    }
+
+    write_metadata(
+        config,
+        Mock(),
+        "TestTable",
+        pd.DataFrame({"RelativeFileArchiveURI": ["/my_images/subdir/instance.dcm"]}),
+    )
+
+    assert written_dataframes[0]["RelativeFileArchiveURI"].iloc[0] == (
+        "/output_images/subdir/instance.dcm"
+    )
 
 
 def test_write_file_skips_copy_when_destination_is_none(monkeypatch):

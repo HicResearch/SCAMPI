@@ -9,6 +9,7 @@ from unittest.mock import Mock
 import pytest
 import pydicom
 import py7zr
+import zipfile
 import yaml
 from pydicom.dataset import FileDataset, FileMetaDataset
 
@@ -413,20 +414,21 @@ def test_process_appends_none_when_data_element_raises(tmp_path):
     assert values[1] is None
 
 
-# ─── process: .7z path ───────────────────────────────────────────────────────
+# ─── process: archive paths ──────────────────────────────────────────────────
 
-def test_process_handles_7z_archive_file(tmp_path, monkeypatch):
-    """Lines 135-139: .7z files are read from ./received_dicoms/friendly_name/<archive>/."""
+@pytest.mark.parametrize("archive_extension", ["7z", "zip"])
+def test_process_handles_archive_file(tmp_path, monkeypatch, archive_extension):
     make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
         {"ColumnName": "PatientID"},
     ]}])
-    archive_dir = tmp_path / "received_dicoms" / "friendly_name" / "scan.7z"
+    archive_name = f"scan.{archive_extension}"
+    archive_dir = tmp_path / "received_dicoms" / "friendly_name" / archive_name
     archive_dir.mkdir(parents=True)
     write_dicom(archive_dir / "image.dcm")
     monkeypatch.chdir(tmp_path)
     logger = Mock()
 
-    records = metadata_processor.process("scan.7z", str(tmp_path),"friendly_name", logger)
+    records = metadata_processor.process(archive_name, str(tmp_path), "friendly_name", logger)
 
     assert len(records) == 1
     _, _, table_name = records[0]
@@ -480,13 +482,13 @@ def test_metadata_processor_handles_none_record_in_result(
     assert logger.info.call_args.args[0]["file_count"] == 1
 
 
+@pytest.mark.parametrize("archive_extension", ["7z", "zip"])
 @pytest.mark.parametrize(
     "archive_name_template",
     [None, "scans_%Y%m%d.7z"],
 )
 def test_metadata_processor_compresses_files_and_updates_archive_uri(
-    tmp_path, monkeypatch, patched_executor, mock_destination_writer,
-    archive_name_template
+    tmp_path, monkeypatch, patched_executor, mock_destination_writer, archive_extension,archive_name_template
 ):
     source_dir = tmp_path / "source"
     source_dir.mkdir()
@@ -495,24 +497,24 @@ def test_metadata_processor_compresses_files_and_updates_archive_uri(
         {"ColumnName": "RelativeFileArchiveURI"},
     ]}])
     write_dicom(source_dir / "image.dcm")
-    archived_source = source_dir / "scan.7z"
+    source_archive_name = f"scan.{archive_extension}"
+    archived_source = source_dir / source_archive_name
     archived_dicom = tmp_path / "archived-image.dcm"
     write_dicom(archived_dicom, patient_id="patient-archived")
-    with py7zr.SevenZipFile(archived_source, mode="w") as archive:
-        archive.write(archived_dicom, arcname="image.dcm")
-    zip_source = source_dir / "scan.zip"
-    zip_dicom = tmp_path / "zip-image.dcm"
-    write_dicom(zip_dicom, patient_id="patient-zipped")
-    with zipfile.ZipFile(zip_source, mode="w") as archive:
-        archive.write(zip_dicom, arcname="image.dcm")
-    extracted_dir = tmp_path / "received_dicoms" / "scans" / "scan.7z"
+    if archive_extension == "7z":
+        with py7zr.SevenZipFile(archived_source, mode="w") as archive:
+            archive.write(archived_dicom, arcname="image.dcm")
+    else:
+        with zipfile.ZipFile(archived_source, mode="w") as archive:
+            archive.write(archived_dicom, arcname="image.dcm")
+    extracted_dir = tmp_path / "received_dicoms" / "scans" / source_archive_name
     extracted_dir.mkdir(parents=True)
-    with py7zr.SevenZipFile(archived_source, mode="r") as archive:
-        archive.extractall(path=extracted_dir)
-    zip_extracted_dir = tmp_path / "received_dicoms" / "scans" / "scan.zip"
-    zip_extracted_dir.mkdir(parents=True)
-    with zipfile.ZipFile(zip_source, mode="r") as archive:
-        archive.extractall(path=zip_extracted_dir)
+    if archive_extension == "7z":
+        with py7zr.SevenZipFile(archived_source, mode="r") as archive:
+            archive.extractall(path=extracted_dir)
+    else:
+        with zipfile.ZipFile(archived_source, mode="r") as archive:
+            archive.extractall(path=extracted_dir)
     monkeypatch.chdir(tmp_path)
     logger = Mock()
     files_config = {
@@ -541,13 +543,11 @@ def test_metadata_processor_compresses_files_and_updates_archive_uri(
     with py7zr.SevenZipFile(archive_path, mode="r") as archive:
         assert set(archive.getnames()) == {
             "scans/image.dcm",
-            "scans/scan.7z/image.dcm",
-            "scans/scan.zip/image.dcm",
+            f"scans/{source_archive_name}/image.dcm",
         }
 
     written_dataframe = mock_destination_writer.call_args.args[3]
     assert set(written_dataframe["RelativeFileArchiveURI"]) == {
         f"{archive_path.as_posix()}!scans/image.dcm",
-        f"{archive_path.as_posix()}!scans/scan.7z/image.dcm",
-        f"{archive_path.as_posix()}!scans/scan.zip/image.dcm",
+        f"{archive_path.as_posix()}!scans/{source_archive_name}/image.dcm",
     }
