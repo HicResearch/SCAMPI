@@ -17,8 +17,9 @@ sources:
 destination:
   files:
     directory: /output
-    compress: false
-    metadata_directory: /output_images/ # optional: path prefix to use for database file URIs
+    compress: true
+    archive_name_template: "YOKED_%Y"
+    metadata_directory: /my_custom_directory # optional: path prefix to use for database file URIs
   metadata:
     dbType: MSSQL
     connectionString: mssql+pyodbc://scampi:scampi@host.docker.internal,1433/SCAMPI?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes

@@ -1,6 +1,7 @@
 import os
 import shutil
 import datetime
+import zipfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import Mock
@@ -434,6 +435,23 @@ def test_process_handles_archive_file(tmp_path, monkeypatch, archive_extension):
     assert table_name == "StudyTable"
 
 
+def test_process_handles_zip_archive_file(tmp_path, monkeypatch):
+    make_template(tmp_path / "templates", "CT", [{"TableName": "StudyTable", "Columns": [
+        {"ColumnName": "PatientID"},
+    ]}])
+    archive_dir = tmp_path / "received_dicoms" / "friendly_name" / "scan.zip"
+    archive_dir.mkdir(parents=True)
+    write_dicom(archive_dir / "image.dcm")
+    monkeypatch.chdir(tmp_path)
+    logger = Mock()
+
+    records = metadata_processor.process("scan.zip", str(tmp_path), "friendly_name", logger)
+
+    assert len(records) == 1
+    _, _, table_name = records[0]
+    assert table_name == "StudyTable"
+
+
 # ─── metadata_processor: None result from process ────────────────────────────
 
 def test_metadata_processor_handles_none_result_from_process(
@@ -495,6 +513,12 @@ def test_metadata_processor_compresses_files_and_updates_archive_uri(
             archive.extractall(path=extracted_dir)
     monkeypatch.chdir(tmp_path)
     logger = Mock()
+    files_config = {
+        "directory": str(tmp_path / "output"),
+        "compress": True,
+    }
+    if archive_name_template is not None:
+        files_config["archive_name_template"] = archive_name_template
     config = {
         "sources": {
             "scans": {
@@ -503,12 +527,14 @@ def test_metadata_processor_compresses_files_and_updates_archive_uri(
                 "include_archives": True,
             }
         },
-        "destination": {"files": {"directory": str(tmp_path / "output"), "compress": True}},
+        "destination": {"files": files_config},
     }
 
     metadata_processor.metadata_processor(config, logger)
 
-    archive_name = datetime.date.today().strftime("%Y%m%d") + ".7z"
+    archive_name = datetime.date.today().strftime(
+        archive_name_template or "%Y%m%d.7z"
+    )
     archive_path = tmp_path / "output" / archive_name
     with py7zr.SevenZipFile(archive_path, mode="r") as archive:
         assert set(archive.getnames()) == {
