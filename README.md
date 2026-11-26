@@ -22,7 +22,7 @@ sources:
     type: filesystem              # "filesystem" or "pacs"
     directory: /my_images         # path inside the container (see volume mounts below)
     file_regex: .*                # optional: filter filenames by regex
-    include_archives: True        # optional: also process .7z archives
+    include_archives: True        # optional: also process .7z and .zip archives
   pacs_source:
     type: pacs
     aet: LOCALMACHINE           # your calling AE title
