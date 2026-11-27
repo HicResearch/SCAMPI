@@ -1,39 +1,25 @@
-FROM python:3.13-alpine
+FROM python:3.13-slim-bookworm
 WORKDIR /SCAMPI
 ENV PYTHONUNBUFFERED=1
-RUN apk add --update --no-cache python3
-# RUN apk add gcc libc-dev g++ libffi-dev libxml2 unixodbc-dev mariadb-dev
 
-# Install dependencies
-RUN apk --no-cache add curl gnupg
-RUN apk add --no-cache gcc g++ musl-dev xz-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential ca-certificates curl gnupg libgl1 libglib2.0-0 libgomp1 \
+    liblzma-dev tesseract-ocr tesseract-ocr-eng unixodbc-dev \
+    && rm -rf /var/lib/apt/lists/*
 
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
+    > /etc/apt/sources.list.d/microsoft-prod.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 mssql-tools18 \
+    && rm -rf /var/lib/apt/lists/*
 
-#Download the desired package(s)
-RUN curl -O https://download.microsoft.com/download/0b3d5518-b4a7-4a2b-afc7-7ee9e967f93c/msodbcsql18_18.6.2.1-1_amd64.apk
-RUN curl -O https://download.microsoft.com/download/cad0d30f-b9b1-4765-a011-81d8a66c8b8d/mssql-tools18_18.6.2.1-1_amd64.apk
-
-#(Optional) Verify signature, if 'gpg' is missing install it using 'apk add gnupg':
-RUN curl -O https://download.microsoft.com/download/0b3d5518-b4a7-4a2b-afc7-7ee9e967f93c/msodbcsql18_18.6.2.1-1_amd64.sig
-RUN curl -O https://download.microsoft.com/download/cad0d30f-b9b1-4765-a011-81d8a66c8b8d/mssql-tools18_18.6.2.1-1_amd64.sig
-
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | gpg --import -
-RUN gpg --verify msodbcsql18_18.6.2.1-1_amd64.sig msodbcsql18_18.6.2.1-1_amd64.apk
-RUN gpg --verify mssql-tools18_18.6.2.1-1_amd64.sig mssql-tools18_18.6.2.1-1_amd64.apk
-
-#Install the package(s)
-RUN apk add --allow-untrusted msodbcsql18_18.6.2.1-1_amd64.apk
-RUN apk add --allow-untrusted mssql-tools18_18.6.2.1-1_amd64.apk
-
-RUN python3 -m venv venv
+RUN python -m venv venv
 RUN ./venv/bin/pip install py7zr
-
-# RUN apk add py3-pip
-# RUN python3 -m ensurepip
-# RUN python3 -m pip install --upgrade pip
-
 RUN ./venv/bin/pip install --no-cache --upgrade pip setuptools
 COPY . .
 
 RUN ./venv/bin/pip install -r ./requirements.txt
+RUN ./venv/bin/python -m spacy download en_core_web_lg
 CMD ["./venv/bin/python", "./process_engine.py"]

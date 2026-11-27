@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 import pandas as pd
 import pytest
 
@@ -65,6 +65,48 @@ def test_write_metadata_mssql_logs_finished_on_success(monkeypatch):
     messages = [c.args[0]["message"] for c in logger.debug.call_args_list]
     assert any("Finished writing" in m for m in messages)
     assert any("Writing" in m for m in messages)
+
+
+def test_write_metadata_adds_redacted_column_to_existing_table(monkeypatch):
+    executed_statements = []
+    connection = Mock()
+    connection.execute.side_effect = lambda statement: executed_statements.append(
+        str(statement)
+    )
+    engine = MagicMock()
+    engine.dialect.identifier_preparer.quote.side_effect = (
+        lambda identifier: f"[{identifier}]"
+    )
+    engine.begin.return_value.__enter__.return_value = connection
+    inspector = Mock()
+    inspector.has_table.return_value = True
+    inspector.get_columns.return_value = [{"name": "PatientID"}]
+    monkeypatch.setattr(
+        "destination_writer.destination_writer.sqlalchemy.create_engine",
+        lambda connection_string: engine,
+    )
+    monkeypatch.setattr(
+        "destination_writer.destination_writer.sqlalchemy.inspect",
+        lambda inspected_engine: inspector,
+    )
+    monkeypatch.setattr(pd.DataFrame, "to_sql", lambda *a, **kw: None)
+
+    config = {
+        "destination": {
+            "metadata": {
+                "dbType": "MSSQL",
+                "connectionString": "fake_conn",
+                "index": "id",
+            }
+        }
+    }
+
+    write_metadata(config, Mock(), "CT_ImageTable", pd.DataFrame({"Redacted": [True]}))
+
+    assert executed_statements == [
+        "ALTER TABLE [CT_ImageTable] ADD [Redacted] BIT NOT NULL DEFAULT 0"
+    ]
+    engine.dispose.assert_called_once()
 
 
 # ── destination_writer: write_file routing ────────────────────────────────

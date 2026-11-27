@@ -10,6 +10,7 @@ from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 import re
 import py7zr
+import tempfile
 # templates from https://github.com/SMI/DicomTypeTranslation/tree/main/Templates
 modality_templates_location="/templates"
 
@@ -177,10 +178,18 @@ def process(file,root_directory,name, logger, compress=False):
 
 def _write_compressed_archive(config, logger, archive_members):
     destination = os.path.expanduser(config['destination']['files']['directory'])
+    redact_images = (
+        config["destination"]["files"].get("redact_images", False) is True
+    )
+    if redact_images:
+        from dicom_redactor import redact_dicom_file
+
     files_to_archive = {}
     for dataframe in modality_tables.values():
         if "RelativeFileArchiveURI" not in dataframe:
             continue
+        if redact_images:
+            dataframe["Redacted"] = False
         for uri in dataframe["RelativeFileArchiveURI"].dropna():
             source_path = os.path.abspath(str(uri))
             member = archive_members.get(source_path)
@@ -199,9 +208,21 @@ def _write_compressed_archive(config, logger, archive_members):
     archive_name = datetime.date.today().strftime(archive_name_template)
     archive_path = os.path.join(destination, archive_name)
     archive_uri = archive_path.replace("\\", "/")
-    with py7zr.SevenZipFile(archive_path, mode="w") as archive:
-        for source_path, member in files_to_archive.items():
-            archive.write(source_path, arcname=member)
+    redaction_results = {}
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        with py7zr.SevenZipFile(archive_path, mode="w") as archive:
+            for index, (source_path, member) in enumerate(files_to_archive.items()):
+                if redact_images:
+                    redacted_path = os.path.join(
+                        temporary_directory,
+                        f"{index}{os.path.splitext(source_path)[1]}",
+                    )
+                    redaction_results[source_path] = redact_dicom_file(
+                        source_path, redacted_path
+                    )
+                    archive.write(redacted_path, arcname=member)
+                else:
+                    archive.write(source_path, arcname=member)
 
     for dataframe in modality_tables.values():
         if "RelativeFileArchiveURI" not in dataframe:
@@ -209,9 +230,14 @@ def _write_compressed_archive(config, logger, archive_members):
         for index, uri in dataframe["RelativeFileArchiveURI"].items():
             if uri is None or pd.isna(uri):
                 continue
-            member = archive_members.get(os.path.abspath(str(uri)))
+            source_path = os.path.abspath(str(uri))
+            member = archive_members.get(source_path)
             if member is None:
                 raise ValueError(f"Unable to locate processed file for archive URI: {uri}")
+            if redact_images:
+                dataframe.at[index, "Redacted"] = redaction_results.get(
+                    source_path, False
+                )
             dataframe.at[index, "RelativeFileArchiveURI"] = f"{archive_uri}!{member}"
 
     logger.info({

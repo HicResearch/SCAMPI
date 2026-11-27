@@ -35,6 +35,7 @@ destination:
   files:
     directory: /output            # path inside the container (see volume mounts below)
     compress: true
+    redact_images: false           # optionally redact detected text from saved DICOM images
   metadata:
     dbType: MSSQL
     connectionString: mssql+pyodbc://user:pass@host.docker.internal,1433/SCAMPI?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes
@@ -42,6 +43,9 @@ destination:
 ```
 
 Use `host.docker.internal` as the hostname to reach SQL Server running on the Docker host machine.
+Set `destination.files.redact_images` to `true` to redact detected text in the
+destination DICOM images. The source images remain unchanged; redaction is
+disabled by default.
 
 ## Building the Docker image
 

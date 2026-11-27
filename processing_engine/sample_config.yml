@@ -17,7 +17,8 @@ sources:
 destination:
   files:
     directory: /output
-    compress: true
+    compress: false
+    redact_images: true # optional: redact text from destination DICOM images
     archive_name_template: "YOKED_%Y"
     metadata_directory: /my_custom_directory # optional: path prefix to use for database file URIs
   metadata:

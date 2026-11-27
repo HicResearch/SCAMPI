@@ -24,33 +24,62 @@ def _source_relative_path(uri, sources):
 
 def write_file(config,logger,dataframe):
     start_time = datetime.datetime.now(datetime.UTC)
-    destination = os.path.expanduser(config['destination']['files']['directory'])
+    files_config = config['destination']['files']
+    destination = os.path.expanduser(files_config['directory'])
     os.makedirs(destination, exist_ok=True)
 
-    if config['destination']['files'].get('compress', False):
+    if files_config.get('compress', False):
         logger.info({
             "message": f"Files were written to the compressed archive in {destination}",
             "timestamp": datetime.datetime.now(datetime.UTC).timestamp()
         })
         return
 
-    written_archives = []
+    redact_images = files_config.get("redact_images", False) is True
+    if redact_images:
+        from dicom_redactor import redact_archive_file, redact_dicom_file
 
-    for _, row in dataframe.iterrows():
+    written_archives = []
+    redactions_by_archive = {}
+    if redact_images and "RelativeFileArchiveURI" in dataframe:
+        dataframe["Redacted"] = False
+
+    for row_index, row in dataframe.iterrows():
          RelativeFileArchiveURI = row.get("RelativeFileArchiveURI")
          if RelativeFileArchiveURI is not None:
             if '!' in RelativeFileArchiveURI: #archive
-                if(RelativeFileArchiveURI.split('!')[0] in written_archives):
-                    continue
-                else:
+                source_archive, member = RelativeFileArchiveURI.split('!', 1)
+                if source_archive not in written_archives:
                     destination_file = get_destination_location(row,destination).split('!')[0]
                     if destination_file is not None:
-                        shutil.copyfile(RelativeFileArchiveURI.split('!')[0],destination_file)
-                        written_archives.append(RelativeFileArchiveURI.split('!')[0])
+                        if redact_images:
+                            redactions_by_archive[source_archive] = redact_archive_file(
+                                source_archive, destination_file
+                            )
+                        else:
+                            shutil.copyfile(source_archive,destination_file)
+                        written_archives.append(source_archive)
+                if redact_images:
+                    dataframe.at[row_index, "Redacted"] = redactions_by_archive.get(
+                        source_archive, {}
+                    ).get(member.replace("\\", "/"), False)
             else:
                 destination_file = get_destination_location(row,destination)
                 if destination_file is not None:
-                    shutil.copyfile(RelativeFileArchiveURI,destination_file)
+                    if redact_images:
+                        if RelativeFileArchiveURI.lower().endswith((".zip", ".7z")):
+                            redactions = redact_archive_file(
+                                RelativeFileArchiveURI, destination_file
+                            )
+                            dataframe.at[row_index, "Redacted"] = any(
+                                redactions.values()
+                            )
+                        else:
+                            dataframe.at[row_index, "Redacted"] = redact_dicom_file(
+                                RelativeFileArchiveURI, destination_file
+                            )
+                    else:
+                        shutil.copyfile(RelativeFileArchiveURI,destination_file)
     end_time = datetime.datetime.now(datetime.UTC)
     logger.info({
         "message":f"Wrote {len(dataframe.index)} files in {(end_time-start_time).total_seconds()} seconds",
@@ -101,12 +130,21 @@ def write_metadata(config,logger, table_name, dataframe):
             "timestamp": datetime.datetime.now(datetime.UTC).timestamp() 
         })
         try:
+            if "Redacted" in df_to_write.columns:
+                engine = sqlalchemy.create_engine(
+                    config['destination']['metadata']['connectionString']
+                )
+                try:
+                    _ensure_redacted_column(engine, table_name)
+                finally:
+                    engine.dispose()
             df_to_write.to_sql(table_name,config['destination']['metadata']['connectionString'],if_exists="append",index=False,index_label=index,
             dtype= { 'datefld': sqlalchemy.DateTime(), 
                     'intfld':  sqlalchemy.types.INTEGER(),
                     'strfld': sqlalchemy.types.NVARCHAR(length=255),
                     'floatfld': sqlalchemy.types.Float(precision=3, asdecimal=True),
-                    'booleanfld': sqlalchemy.types.Boolean}                   
+                    'booleanfld': sqlalchemy.types.Boolean,
+                    'Redacted': sqlalchemy.types.Boolean}
             )
             logger.debug({
                 "message": f"Finished writing {df_to_write.shape[0]} records to {table_name}",
@@ -124,8 +162,36 @@ def write_metadata(config,logger, table_name, dataframe):
         })
 
 
+def _ensure_redacted_column(engine, table_name):
+    inspector = sqlalchemy.inspect(engine)
+    if not inspector.has_table(table_name):
+        return
+    columns = {
+        column["name"].casefold()
+        for column in inspector.get_columns(table_name)
+    }
+    if "redacted" in columns:
+        return
+
+    identifier_preparer = engine.dialect.identifier_preparer
+    quoted_table = identifier_preparer.quote(table_name)
+    quoted_column = identifier_preparer.quote("Redacted")
+    statement = sqlalchemy.text(
+        f"ALTER TABLE {quoted_table} ADD {quoted_column} BIT NOT NULL DEFAULT 0"
+    )
+    with engine.begin() as connection:
+        connection.execute(statement)
+
+
 
 def destination_writer(config, logger, table_name,dataframe):
+    redact_images = (
+        config.get("destination", {})
+        .get("files", {})
+        .get("redact_images", False) is True
+    )
+    if redact_images and 'RelativeFileArchiveURI' in dataframe:
+        write_file(config, logger,dataframe)
     write_metadata(config,logger, table_name,dataframe)
-    if 'RelativeFileArchiveURI' in dataframe:
+    if not redact_images and 'RelativeFileArchiveURI' in dataframe:
         write_file(config, logger,dataframe)
